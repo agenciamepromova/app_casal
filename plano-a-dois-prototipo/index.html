@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#111315" />
+  <title>Plano a Dois — Protótipo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="toast" class="toast"></div>
+
+  <section id="loginScreen" class="login-screen">
+    <div class="login-image">
+      <div class="brand-badge">PA</div>
+      <div class="login-copy">
+        <span class="eyebrow">VIDA A DOIS, COM CLAREZA</span>
+        <h1>Construam o futuro<br>com decisões reais.</h1>
+        <p>Finanças, compromissos, projetos e sonhos do casal em um só lugar.</p>
+      </div>
+    </div>
+    <div class="login-panel">
+      <div class="login-card">
+        <span class="mini-logo">Plano a Dois</span>
+        <h2>Bem-vindos</h2>
+        <p class="muted">Acesse o ambiente de demonstração.</p>
+        <form id="loginForm">
+          <label>Usuário</label>
+          <input id="username" autocomplete="username" value="adm" required />
+          <label>Senha</label>
+          <div class="password-field">
+            <input id="password" type="password" autocomplete="current-password" value="Projeto@1234" required />
+            <button type="button" id="togglePassword">Mostrar</button>
+          </div>
+          <button class="primary-btn" type="submit">Entrar no projeto</button>
+        </form>
+        <div class="demo-access">
+          <strong>Acesso de teste</strong>
+          <span>Usuário: adm</span>
+          <span>Senha: Projeto@1234</span>
+        </div>
+        <small>Protótipo local. Não use dados financeiros reais nesta versão.</small>
+      </div>
+    </div>
+  </section>
+
+  <div id="app" class="app hidden">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-badge small">PA</div>
+        <div><strong>Plano a Dois</strong><span>Nikson & Brenda</span></div>
+      </div>
+      <nav id="desktopNav">
+        <button class="nav-item active" data-page="home">⌂ <span>Início</span></button>
+        <button class="nav-item" data-page="financas">↕ <span>Finanças</span></button>
+        <button class="nav-item" data-page="agenda">◷ <span>Agenda</span></button>
+        <button class="nav-item" data-page="planos">◇ <span>Planos</span></button>
+        <button class="nav-item" data-page="relatorios">▦ <span>Relatórios</span></button>
+      </nav>
+      <div class="sidebar-bottom">
+        <button id="resetDemo" class="ghost-btn">Restaurar dados</button>
+        <button id="logoutBtn" class="nav-item">↪ <span>Sair</span></button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <span class="eyebrow">PAINEL DO CASAL</span>
+          <h2 id="pageTitle">Bom dia, Nikson e Brenda</h2>
+        </div>
+        <div class="top-actions">
+          <button id="hideValues" class="icon-btn" title="Ocultar valores">◉</button>
+          <button class="icon-btn" title="Notificações">●</button>
+          <div class="avatar">NB</div>
+        </div>
+      </header>
+
+      <section id="home" class="page active">
+        <div class="hero-grid">
+          <article class="balance-card">
+            <div>
+              <span>Patrimônio líquido</span>
+              <h1 class="money-value" data-value="42850">R$ 42.850,00</h1>
+              <p><strong>+8,4%</strong> nos últimos 90 dias</p>
+            </div>
+            <div class="balance-breakdown">
+              <div><span>Contas</span><strong class="money-value" data-value="12400">R$ 12.400</strong></div>
+              <div><span>Investimentos</span><strong class="money-value" data-value="34300">R$ 34.300</strong></div>
+              <div><span>Compromissos</span><strong class="money-value negative" data-value="-3850">− R$ 3.850</strong></div>
+            </div>
+          </article>
+
+          <article class="assistant-card">
+            <div class="assistant-head">
+              <div class="assistant-orb">E</div>
+              <div><strong>Elo, assistente do casal</strong><span>Registre usando linguagem natural</span></div>
+            </div>
+            <textarea id="assistantInput" placeholder="Ex.: Paguei R$ 280 de energia hoje ou me lembre da fatura dia 25"></textarea>
+            <div class="assistant-actions">
+              <button id="voiceBtn" class="secondary-btn">🎙 Falar</button>
+              <button id="processAssistant" class="primary-btn compact">Registrar</button>
+            </div>
+            <div id="assistantResult" class="assistant-result hidden"></div>
+          </article>
+        </div>
+
+        <div class="stats-grid">
+          <article class="stat-card"><span>Entradas do mês</span><strong class="money-value" data-value="14500">R$ 14.500</strong><small>3 fontes de renda</small></article>
+          <article class="stat-card"><span>Saídas do mês</span><strong class="money-value" data-value="9870">R$ 9.870</strong><small>68% do recebido</small></article>
+          <article class="stat-card"><span>Saldo do mês</span><strong class="money-value positive" data-value="4630">R$ 4.630</strong><small>Meta: R$ 5.000</small></article>
+          <article class="stat-card"><span>Reserva mensal</span><strong class="money-value" data-value="2100">R$ 2.100</strong><small>42% da meta</small></article>
+        </div>
+
+        <div class="content-grid">
+          <article class="panel">
+            <div class="panel-head"><div><span class="eyebrow">PRÓXIMOS DIAS</span><h3>Agenda financeira</h3></div><button class="link-btn" data-page-link="agenda">Ver agenda</button></div>
+            <div id="upcomingList" class="timeline"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head"><div><span class="eyebrow">SONHO EM DESTAQUE</span><h3>Nossa casa</h3></div><span class="pill">Prioridade alta</span></div>
+            <div class="goal-visual">
+              <div class="goal-house">⌂</div>
+              <div>
+                <strong class="money-value" data-value="27500">R$ 27.500</strong>
+                <span>de R$ 120.000</span>
+              </div>
+            </div>
+            <div class="progress"><i style="width:23%"></i></div>
+            <div class="goal-meta"><span>23% concluído</span><span>Previsão: dez/2029</span></div>
+          </article>
+        </div>
+
+        <article class="panel insights">
+          <div class="panel-head"><div><span class="eyebrow">CLAREZA DO MÊS</span><h3>O que merece atenção</h3></div></div>
+          <div class="insight-grid">
+            <div><b>01</b><p>As despesas com alimentação estão <strong>18% acima</strong> do planejado.</p></div>
+            <div><b>02</b><p>Vocês precisam reservar mais <strong>R$ 900</strong> para bater a meta do mês.</p></div>
+            <div><b>03</b><p>Há <strong>R$ 1.480</strong> em parcelas comprometendo o próximo mês.</p></div>
+          </div>
+        </article>
+      </section>
+
+      <section id="financas" class="page">
+        <div class="page-head">
+          <div><span class="eyebrow">MOVIMENTAÇÕES</span><h2>Finanças do casal</h2></div>
+          <button id="openTransactionModal" class="primary-btn compact">+ Nova movimentação</button>
+        </div>
+        <div class="stats-grid">
+          <article class="stat-card"><span>Saldo disponível</span><strong class="money-value" data-value="12400">R$ 12.400</strong></article>
+          <article class="stat-card"><span>Fatura atual</span><strong class="money-value negative" data-value="-1280">R$ 1.280</strong></article>
+          <article class="stat-card"><span>Investido no mês</span><strong class="money-value" data-value="2100">R$ 2.100</strong></article>
+          <article class="stat-card"><span>Despesas fixas</span><strong class="money-value" data-value="4960">R$ 4.960</strong></article>
+        </div>
+        <article class="panel">
+          <div class="panel-head">
+            <div><span class="eyebrow">HISTÓRICO</span><h3>Últimas movimentações</h3></div>
+            <select id="transactionFilter"><option value="all">Todas</option><option value="entrada">Entradas</option><option value="saida">Saídas</option></select>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Descrição</th><th>Categoria</th><th>Responsável</th><th>Data</th><th>Valor</th></tr></thead>
+              <tbody id="transactionTable"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section id="agenda" class="page">
+        <div class="page-head">
+          <div><span class="eyebrow">COMPROMISSOS</span><h2>Agenda inteligente</h2></div>
+          <button id="openEventModal" class="primary-btn compact">+ Novo compromisso</button>
+        </div>
+        <div class="agenda-layout">
+          <article class="panel calendar-card">
+            <div class="calendar-head"><button id="prevMonth">‹</button><h3 id="calendarMonth"></h3><button id="nextMonth">›</button></div>
+            <div class="calendar-week"><span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span></div>
+            <div id="calendarGrid" class="calendar-grid"></div>
+          </article>
+          <article class="panel">
+            <div class="panel-head"><div><span class="eyebrow">LEMBRETES</span><h3>Próximos compromissos</h3></div></div>
+            <div id="agendaList" class="event-list"></div>
+          </article>
+        </div>
+      </section>
+
+      <section id="planos" class="page">
+        <div class="page-head"><div><span class="eyebrow">CONSTRUÇÃO A DOIS</span><h2>Sonhos e projetos</h2></div><button id="addGoalBtn" class="primary-btn compact">+ Novo plano</button></div>
+        <div id="goalsGrid" class="goals-grid"></div>
+      </section>
+
+      <section id="relatorios" class="page">
+        <div class="page-head"><div><span class="eyebrow">VISÃO ESTRATÉGICA</span><h2>Relatório mensal</h2></div></div>
+        <div class="report-grid">
+          <article class="panel"><div class="panel-head"><h3>Distribuição das despesas</h3></div><div id="expenseBars" class="bar-chart"></div></article>
+          <article class="panel"><div class="panel-head"><h3>Evolução patrimonial</h3></div><div class="line-placeholder"><svg viewBox="0 0 500 190" preserveAspectRatio="none"><polyline points="0,150 70,135 140,145 210,105 280,95 350,65 420,58 500,25" fill="none" stroke="currentColor" stroke-width="5"/><line x1="0" y1="170" x2="500" y2="170" stroke="currentColor" opacity=".2"/></svg><div><span>Jan</span><span>Fev</span><span>Mar</span><span>Abr</span><span>Mai</span><span>Jun</span><span>Jul</span></div></div></article>
+        </div>
+        <article class="panel summary-report">
+          <h3>Resumo de julho</h3>
+          <p>O casal preservou <strong>31,9% da renda</strong> do mês. O maior ponto de atenção é alimentação fora de casa. Mantendo a média atual de aportes, a reserva de emergência será concluída em aproximadamente <strong>7 meses</strong>.</p>
+        </article>
+      </section>
+    </main>
+
+    <nav class="mobile-nav">
+      <button class="mobile-item active" data-page="home">⌂<span>Início</span></button>
+      <button class="mobile-item" data-page="financas">↕<span>Finanças</span></button>
+      <button id="mobileAdd" class="mobile-add">+</button>
+      <button class="mobile-item" data-page="planos">◇<span>Planos</span></button>
+      <button class="mobile-item" data-page="agenda">◷<span>Agenda</span></button>
+    </nav>
+  </div>
+
+  <dialog id="transactionModal">
+    <form method="dialog" id="transactionForm" class="modal-form">
+      <div class="modal-head"><h3>Nova movimentação</h3><button value="cancel">×</button></div>
+      <label>Tipo</label><select id="txType"><option value="entrada">Entrada</option><option value="saida">Saída</option></select>
+      <label>Descrição</label><input id="txDescription" required placeholder="Ex.: Gestão de tráfego" />
+      <label>Valor</label><input id="txValue" type="number" step="0.01" required placeholder="0,00" />
+      <label>Categoria</label><input id="txCategory" required placeholder="Ex.: Trabalho, Moradia..." />
+      <label>Responsável</label><select id="txOwner"><option>Nikson</option><option>Brenda</option><option>Casal</option></select>
+      <button class="primary-btn" type="submit">Salvar movimentação</button>
+    </form>
+  </dialog>
+
+  <dialog id="eventModal">
+    <form method="dialog" id="eventForm" class="modal-form">
+      <div class="modal-head"><h3>Novo compromisso</h3><button value="cancel">×</button></div>
+      <label>Título</label><input id="eventTitle" required placeholder="Ex.: Pagar fatura Nubank" />
+      <label>Data</label><input id="eventDate" type="date" required />
+      <label>Hora</label><input id="eventTime" type="time" value="09:00" />
+      <label>Tipo</label><select id="eventType"><option>Pagamento</option><option>Reunião</option><option>Lembrete</option><option>Meta</option></select>
+      <button class="primary-btn" type="submit">Criar compromisso</button>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
