@@ -1,6 +1,6 @@
 export function parseMoneyToCents(value: string): bigint {
   const normalized = value.trim().replace(/\./g, "").replace(",", ".");
-  if (!/^\d+(\.\d{1,2})?$/.test(normalized)) throw new Error("Valor monetario invalido.");
+  if (!/^\d+(\.\d{1,2})?$/.test(normalized)) throw new Error("Valor monetário inválido.");
   const [whole, fraction = ""] = normalized.split(".");
   return BigInt(whole) * 100n + BigInt(fraction.padEnd(2, "0"));
 }

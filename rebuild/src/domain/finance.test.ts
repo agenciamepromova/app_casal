@@ -14,7 +14,7 @@ describe("regras financeiras", () => {
   it("projeta compromissos dentro da janela", () => {
     expect(projectedBalance([account], [], [commitment({}), commitment({ id:"r", type:"receivable", amountCents:80_00 })], "2026-08-01", "2026-08-07")).toBe(150_00);
   });
-  it("nÃ£o projeta novamente uma ocorrÃªncia recorrente jÃ¡ liquidada", () => {
+  it("não projeta novamente uma ocorrência recorrente já liquidada", () => {
     const settled = transaction({ sourceCommitmentId:"f", sourceOccurrenceDate:"2026-08-05" });
     expect(projectedBalance([account], [settled], [commitment({ recurrence:"monthly" })], "2026-08-01", "2026-08-31")).toBe(150_00);
   });

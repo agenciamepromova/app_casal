@@ -6,7 +6,7 @@ import { DemoProvider } from "@/features/demo/demo-store";
 
 export const metadata: Metadata = {
   title: "Plano a Dois",
-  description: "Financas compartilhadas para casais.",
+  description: "Finanças compartilhadas para casais.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
