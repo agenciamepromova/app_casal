@@ -1,0 +1,2 @@
+-- Seed intencionalmente vazio: o onboarding cria contas e categorias padrao.
+-- Testes usam dados ficticios e transacoes com rollback.
