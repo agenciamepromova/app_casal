@@ -22,7 +22,7 @@ type Store = {
   addCommitment:AsyncAction<Commitment>; updateCommitment:AsyncAction<Commitment>; removeCommitment:(id:string)=>Promise<void>;
   settleCommitment:(id:string,occurrenceDate:string,amountCents?:number)=>Promise<void>;
   addGoal:AsyncAction<Goal>; updateGoal:AsyncAction<Goal>; contributeGoal:(goalId:string,amountCents:number,notes?:string)=>Promise<void>;
-  addInvite:(value:Invite)=>void; removeInvite:(id:string)=>void; reset:()=>void;
+  addInvite:(email:string|Invite,role?:"admin"|"member")=>Promise<{id:string;token:string;emailSent:boolean}>; rotateInvite:(id:string)=>Promise<string>; removeInvite:(id:string)=>Promise<void>; reset:()=>void;
 };
 
 type Row = Record<string, unknown>;
@@ -49,7 +49,7 @@ export function DemoProvider({children}:{children:React.ReactNode}) {
       setState({...freshState(),session:true,onboarded:false,demo:false,user:{name:text(profile.full_name),email:user.email??"",theme:profile.theme},household:{name:"",activeId:""},transactions:[],accounts:[],categories:[],projects:[],commitments:[],goals:[],members:[],invites:[]});
       return;
     }
-    const [householdResult,accountsResult,categoriesResult,transactionsResult,projectsResult,commitmentsResult,goalsResult,contributionsResult,membersResult] = await Promise.all([
+    const [householdResult,accountsResult,categoriesResult,transactionsResult,projectsResult,commitmentsResult,goalsResult,contributionsResult,membersResult,invitationsResult] = await Promise.all([
       client.from("households").select("name").eq("id",householdId).single(),
       client.from("accounts").select("*").eq("household_id",householdId).order("created_at"),
       client.from("categories").select("*").eq("household_id",householdId).order("name"),
@@ -59,8 +59,9 @@ export function DemoProvider({children}:{children:React.ReactNode}) {
       client.from("goals").select("*").eq("household_id",householdId).order("created_at",{ascending:false}),
       client.from("goal_contributions").select("*").eq("household_id",householdId).order("contributed_at",{ascending:false}),
       client.rpc("get_household_members",{p_household_id:householdId}),
+      client.from("household_invitations").select("id,email_normalized,role,status,expires_at").eq("household_id",householdId).eq("status","pending").order("created_at",{ascending:false}),
     ]);
-    const failure = [householdResult,accountsResult,categoriesResult,transactionsResult,projectsResult,commitmentsResult,goalsResult,contributionsResult,membersResult].find(result => result.error)?.error;
+    const failure = [householdResult,accountsResult,categoriesResult,transactionsResult,projectsResult,commitmentsResult,goalsResult,contributionsResult,membersResult,invitationsResult].find(result => result.error)?.error;
     if (failure) throw failure;
     const members = (membersResult.data??[]) as Row[];
     const nameById = new Map(members.map(member => [text(member.user_id),text(member.full_name).split(" ")[0]]));
@@ -77,7 +78,8 @@ export function DemoProvider({children}:{children:React.ReactNode}) {
       transactions:((transactionsResult.data??[]) as Row[]).map(item=>({id:text(item.id),type:item.type as Transaction["type"],amountCents:Number(item.amount_cents),description:text(item.description),date:text(item.transaction_date),dueDate:optional(item.due_date),settledAt:optional(item.settled_at),status:item.status as Transaction["status"],accountId:text(item.account_id),categoryId:text(item.category_id),projectId:optional(item.project_id),owner:(nameById.get(text(item.created_by))??"Casal") as Transaction["owner"],notes:optional(item.notes),recurring:Boolean(item.recurring),sourceCommitmentId:optional(item.source_commitment_id),sourceOccurrenceDate:optional(item.source_occurrence_date)})),
       commitments:((commitmentsResult.data??[]) as Row[]).map(item=>({id:text(item.id),title:text(item.title),description:optional(item.description),type:item.type as Commitment["type"],amountCents:cents(item.amount_cents),dueDate:text(item.due_date),dueTime:optional(item.due_time),accountId:optional(item.account_id),categoryId:optional(item.category_id),projectId:optional(item.project_id),responsibleId:text(item.responsible_id),responsibleName:nameById.get(text(item.responsible_id))??"Integrante",status:item.status as Commitment["status"],recurrence:item.recurrence as Commitment["recurrence"],customInterval:cents(item.custom_interval),customUnit:item.custom_unit as Commitment["customUnit"],recurrenceEndsAt:optional(item.recurrence_ends_at),occurrenceLimit:cents(item.occurrence_limit),notes:optional(item.notes)})),
       goals,
-      members:members.map(member=>({id:text(member.user_id),name:text(member.full_name),email:text(member.email),role:member.role as "owner"|"admin"|"member",status:"active",initials:text(member.full_name).split(" ").map(part=>part[0]).join("").slice(0,2)})),invites:[]});
+      members:members.map(member=>({id:text(member.user_id),name:text(member.full_name),email:text(member.email),role:member.role as "owner"|"admin"|"member",status:"active",initials:text(member.full_name).split(" ").map(part=>part[0]).join("").slice(0,2)})),
+      invites:((invitationsResult.data??[]) as Row[]).map(item=>({id:text(item.id),email:text(item.email_normalized),role:item.role as Invite["role"],status:"pending",expiresAt:text(item.expires_at)}))});
   },[client]);
 
   useEffect(()=>{const timer=window.setTimeout(()=>{if(client)loadRemote().catch(()=>setState({...freshState(),session:false,demo:false,commitments:[]})).finally(()=>setReady(true));else{try{const raw=localStorage.getItem(KEY);if(raw)setState(JSON.parse(raw) as AppState)}catch{localStorage.removeItem(KEY)}setReady(true)}},0);return()=>clearTimeout(timer)},[client,loadRemote]);
@@ -110,7 +112,9 @@ export function DemoProvider({children}:{children:React.ReactNode}) {
     addGoal:async item=>{if(!client){saveLocal({...state,goals:[...state.goals,item]});return}const user=await withUser();await checked(client.from("goals").insert({id:item.id,household_id:state.household.activeId,name:item.name,description:item.description||null,target_cents:item.targetCents,due_date:item.dueDate||null,icon:item.icon,account_id:item.accountId||null,active:item.active,created_by:user.id}));await loadRemote()},
     updateGoal:async item=>{if(!client){saveLocal({...state,goals:state.goals.map(row=>row.id===item.id?item:row)});return}await checked(client.from("goals").update({name:item.name,description:item.description||null,target_cents:item.targetCents,due_date:item.dueDate||null,icon:item.icon,account_id:item.accountId||null,active:item.active}).eq("id",item.id));await loadRemote()},
     contributeGoal:async(goalId,amountCents,notes)=>{if(!client){const goal=state.goals.find(item=>item.id===goalId);if(goal)saveLocal({...state,goals:state.goals.map(item=>item.id===goalId?{...item,currentCents:item.currentCents+amountCents,contributions:[...item.contributions,{name:state.user.name,amountCents}]}:item)});return}const user=await withUser();await checked(client.from("goal_contributions").insert({goal_id:goalId,household_id:state.household.activeId,amount_cents:amountCents,contributed_by:user.id,notes:notes||null}));await loadRemote()},
-    addInvite:item=>setState(current=>({...current,invites:[item,...current.invites]})),removeInvite:id=>setState(current=>({...current,invites:current.invites.filter(item=>item.id!==id)})),
+    addInvite:async(emailOrInvite,role)=>{if(!client)throw new Error("Convites exigem o ambiente online.");const email=typeof emailOrInvite==="string"?emailOrInvite:emailOrInvite.email;const invitationRole=role??(typeof emailOrInvite==="string"?"member":emailOrInvite.role);const rows=await checked(client.rpc("create_invitation",{p_household_id:state.household.activeId,p_email:email,p_role:invitationRole}));const invitation=(rows as Row[]|null)?.[0];if(!invitation)throw new Error("Não foi possível criar o convite.");const id=text(invitation.invitation_id),token=text(invitation.token);let emailSent=false;try{const response=await fetch("/api/invitations/email",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({invitationId:id,token})});emailSent=response.ok&&(await response.json() as {sent?:boolean}).sent===true}catch{}await loadRemote();return{id,token,emailSent}},
+    rotateInvite:async id=>{if(!client)throw new Error("Convites exigem o ambiente online.");const rows=await checked(client.rpc("rotate_invitation_token",{p_invitation_id:id}));const token=text((rows as Row[]|null)?.[0]?.token);if(!token)throw new Error("Não foi possível gerar um novo link.");await loadRemote();return token},
+    removeInvite:async id=>{if(!client)throw new Error("Convites exigem o ambiente online.");await checked(client.rpc("cancel_invitation",{p_invitation_id:id}));await loadRemote()},
     reset:()=>saveLocal({...freshState(),session:true}),
   }),[checked,client,loadRemote,online,ready,saveLocal,state,withUser]);
   return <Context.Provider value={value}>{ready?children:<main className="page-loading">Preparando o espaço de vocês...</main>}</Context.Provider>;

@@ -8,7 +8,7 @@ Entregar o núcleo financeiro online para Nikson e Brenda: autenticação indivi
 
 - Projeto Supabase autorizado: `qeuiiixxwfndczjlxkqi`.
 - Projeto CRM proibido: `ekwxkqjhxgwucbagvtov`.
-- Migrations do MVP: `20260808125831_rebuild_mvp_online.sql`, `20260808133457_mvp_supporting_indexes.sql` e `20260808143544_financial_schedule_and_goals.sql`.
+- Migrations do MVP: `20260808125831_rebuild_mvp_online.sql`, `20260808133457_mvp_supporting_indexes.sql`, `20260808143544_financial_schedule_and_goals.sql` e `20260808185854_invitation_acceptance_flow.sql`.
 - Aplicação: `rebuild/` na branch `feat/rebuild-foundation`.
 
 ## Estado desta execução
@@ -47,8 +47,13 @@ Entregar o núcleo financeiro online para Nikson e Brenda: autenticação indivi
 | Projetos e resultado | P1 | concluído | Realizado e projetado separados por projeto | 2026-08-08 | este commit | Tela dedicada de detalhes |
 | Metas | P1 | concluído | Metas e aportes persistentes sem duplicar saldo | 2026-08-08 | este commit | Edição e arquivamento na interface |
 | Household e temas individuais | P1 | em execução | Mesmo household e `profiles.theme` persistente | 2026-08-08 | este commit | Convite completo e validação manual dos dois usuários |
+| Convites e aceite | P0 | concluído | Rota pública, token opaco, retorno após autenticação, e-mail validado e aceite idempotente | 2026-08-08 | este commit | Envio automático depende de `RESEND_API_KEY` e `INVITATION_EMAIL_FROM`; teste final com credenciais reais |
 | Importação CSV | P2 | adiado | Fora do caminho crítico | 2026-08-08 | — | Pré-visualização, mapeamento e duplicidades |
 
 ## Critério de produção
 
 O Preview deve ser validado com os dois logins reais e um terceiro usuário antes de qualquer merge ou promoção para produção.
+
+## Correção do 404 de convite
+
+A causa foi a ausência da rota `/aceitar-convite`: a tela criava um convite somente no estado local e copiava um UUID fictício, enquanto o proxy classificava a URL inexistente como privada. A correção adiciona a rota dinâmica pública, pré-visualização mínima por token, retorno preservado no login/cadastro, convite persistido, cancelamento real, rotação de link e aceite transacional sem duplicar integrantes. Links pendentes anteriores foram invalidados; não havia convite pendente no banco no momento da aplicação.

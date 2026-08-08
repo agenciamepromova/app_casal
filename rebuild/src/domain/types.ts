@@ -10,6 +10,7 @@ export type Recurrence = "none"|"weekly"|"monthly"|"bimonthly"|"quarterly"|"semi
 export type Commitment = { id:string; title:string; description?:string; type:"payable"|"receivable"|"event"; amountCents?:number; dueDate:string; dueTime?:string; accountId?:string; categoryId?:string; projectId?:string; responsibleId:string; responsibleName:string; status:"pending"|"completed"|"cancelled"; recurrence:Recurrence; customInterval?:number; customUnit?:"days"|"weeks"|"months"; recurrenceEndsAt?:string; occurrenceLimit?:number; notes?:string };
 export type Member = { id:string; name:string; email:string; role:"owner"|"admin"|"member"; status:"active"|"pending"; initials:string };
 export type Invite = { id:string; email:string; role:"admin"|"member"; status:"pending"; expiresAt:string };
+export type InvitationPreview = { status:"pending"|"accepted"|"cancelled"|"expired"|"invalid"; inviterName?:string; householdName?:string; role?:"admin"|"member"; invitedEmail?:string; expiresAt?:string };
 export type AppState = {
   version:2; session:boolean; onboarded:boolean; demo:boolean;
   user:{name:string;email:string;theme?:"dark"|"light"|"system"}; household:{name:string;activeId:string};

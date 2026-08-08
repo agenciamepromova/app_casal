@@ -17,7 +17,7 @@ export async function proxy(request: NextRequest) {
     },
   });
   const { data: { user } } = await supabase.auth.getUser();
-  const publicPaths = ["/login", "/cadastro", "/recuperar-senha"];
+  const publicPaths = ["/login", "/cadastro", "/recuperar-senha", "/aceitar-convite"];
   const isPublic = publicPaths.includes(request.nextUrl.pathname);
   const isPrivate = !isPublic && request.nextUrl.pathname !== "/";
   if (!user && isPrivate) {
@@ -26,7 +26,7 @@ export async function proxy(request: NextRequest) {
     response.cookies.getAll().forEach(cookie => redirect.cookies.set(cookie));
     return redirect;
   }
-  if (user && isPublic) {
+  if (user && isPublic && request.nextUrl.pathname !== "/aceitar-convite") {
     const destination = request.nextUrl.clone(); destination.pathname = "/dashboard"; destination.search = "";
     const redirect = NextResponse.redirect(destination);
     response.cookies.getAll().forEach(cookie => redirect.cookies.set(cookie));

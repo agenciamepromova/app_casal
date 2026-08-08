@@ -1,1 +1,1 @@
-import {AuthFrame}from"@/components/auth/auth-frame";import{AuthForm}from"@/components/auth/auth-form";export default function Signup(){return <AuthFrame><AuthForm mode="signup"/></AuthFrame>}
+import {AuthFrame}from"@/components/auth/auth-frame";import{AuthForm}from"@/components/auth/auth-form";export default async function Signup({searchParams}:{searchParams:Promise<{next?:string}>}){return <AuthFrame><AuthForm mode="signup" next={(await searchParams).next}/></AuthFrame>}
