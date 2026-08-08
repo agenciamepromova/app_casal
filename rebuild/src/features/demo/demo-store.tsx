@@ -38,7 +38,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     removeInvite: (id) => patch({ invites: state.invites.filter((item) => item.id !== id) }),
     reset: () => save({ ...freshState(), session: true }),
   }), [patch, ready, save, state]);
-  return <Context.Provider value={value}>{children}</Context.Provider>;
+  return <Context.Provider value={value}>{ready ? children : <main className="page-loading">Preparando o espaço de vocês...</main>}</Context.Provider>;
 }
 
 export function useDemo() { const value = useContext(Context); if (!value) throw new Error("DemoProvider ausente"); return value; }
