@@ -90,6 +90,15 @@ create function private.is_household_admin(p_household_id uuid) returns boolean
 language sql stable security definer set search_path = '' as $$
   select auth.uid() is not null and exists(select 1 from public.household_members m where m.household_id=p_household_id and m.user_id=auth.uid() and m.status='active' and m.role in ('owner','admin'));
 $$;
+create function private.handle_new_user() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  insert into public.profiles(id,full_name)
+  values(new.id,coalesce(nullif(trim(new.raw_user_meta_data->>'full_name'),''),split_part(new.email,'@',1),'Integrante'));
+  return new;
+end $$;
+create trigger on_auth_user_created after insert on auth.users
+for each row execute function private.handle_new_user();
 revoke execute on all functions in schema private from public, anon, authenticated;
 grant usage on schema private to authenticated;
 grant execute on function private.is_active_member(uuid), private.is_household_admin(uuid) to authenticated;
@@ -117,20 +126,20 @@ begin
 end $$;
 create function public.create_invitation(p_household_id uuid,p_email text,p_role public.member_role default 'member')
 returns table(invitation_id uuid, token text, expires_at timestamptz) language plpgsql security definer set search_path = '' as $$
-declare v_user uuid:=auth.uid(); v_token text:=encode(gen_random_bytes(32),'hex'); v_exp timestamptz:=now()+interval '7 days'; v_id uuid;
+declare v_user uuid:=auth.uid(); v_token text:=encode(extensions.gen_random_bytes(32),'hex'); v_exp timestamptz:=now()+interval '7 days'; v_id uuid;
 begin
   if v_user is null or not private.is_household_admin(p_household_id) then raise exception 'Acesso negado'; end if;
   if p_role='owner' then raise exception 'Papel invalido'; end if;
-  update public.household_invitations set status='expired' where household_id=p_household_id and email_normalized=lower(trim(p_email)) and status='pending' and expires_at<=now();
+  update public.household_invitations i set status='expired' where i.household_id=p_household_id and i.email_normalized=lower(trim(p_email)) and i.status='pending' and i.expires_at<=now();
   insert into public.household_invitations(household_id,email_normalized,role,token_hash,invited_by,expires_at)
-  values(p_household_id,lower(trim(p_email)),p_role,digest(v_token,'sha256'),v_user,v_exp) returning id into v_id;
+  values(p_household_id,lower(trim(p_email)),p_role,extensions.digest(v_token,'sha256'),v_user,v_exp) returning id into v_id;
   return query select v_id,v_token,v_exp;
 end $$;
 create function public.accept_invitation(p_token text) returns uuid language plpgsql security definer set search_path = '' as $$
 declare v_user uuid:=auth.uid(); v_email text:=lower(coalesce(auth.jwt()->>'email','')); v_inv public.household_invitations%rowtype;
 begin
   if v_user is null then raise exception 'Usuario nao autenticado'; end if;
-  select * into v_inv from public.household_invitations where token_hash=digest(p_token,'sha256') for update;
+  select * into v_inv from public.household_invitations where token_hash=extensions.digest(p_token,'sha256') for update;
   if not found or v_inv.email_normalized<>v_email then raise exception 'Convite invalido para este e-mail'; end if;
   if v_inv.status<>'pending' then raise exception 'Convite indisponivel'; end if;
   if v_inv.expires_at<=now() then update public.household_invitations set status='expired' where id=v_inv.id; return null; end if;
@@ -156,6 +165,10 @@ create policy categories_member_all on public.categories for all to authenticate
 create policy transactions_member_all on public.transactions for all to authenticated using(private.is_active_member(household_id)) with check(private.is_active_member(household_id) and created_by=(select auth.uid()));
 create policy audit_admin_select on public.audit_events for select to authenticated using(private.is_household_admin(household_id));
 
+grant select on public.profiles, public.households, public.household_members,
+  public.household_invitations, public.audit_events to authenticated;
+grant select, insert, update, delete on public.accounts, public.categories,
+  public.transactions to authenticated;
 revoke update on public.profiles from authenticated; grant update(full_name) on public.profiles to authenticated;
 revoke execute on function public.create_household(text),public.set_active_household(uuid),public.create_invitation(uuid,text,public.member_role),public.accept_invitation(text) from public,anon;
 grant execute on function public.create_household(text),public.set_active_household(uuid),public.create_invitation(uuid,text,public.member_role),public.accept_invitation(text) to authenticated;
