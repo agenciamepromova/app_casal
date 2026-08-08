@@ -23,6 +23,9 @@ Entregar o núcleo financeiro online para Nikson e Brenda: autenticação indivi
 - Tema `dark`, `light` e `system` persistido em `profiles.theme`.
 - Interface conectada progressivamente ao Supabase quando as variáveis públicas estão configuradas.
 - Projeto Vercel isolado: `plano-a-dois-rebuild`; variáveis públicas limitadas a Preview.
+- Preview técnico: `https://plano-a-dois-rebuild-dlkythr13-nikson-rodrigues-projects.vercel.app` (protegido pela autenticação da Vercel).
+- Preview carregado em desktop e celular, com Supabase online e sem overlay de erro.
+- O primeiro deploy automático do projeto novo foi removido após a Vercel classificá-lo como Production; o aplicativo histórico não foi substituído.
 
 ## Validação manual pendente
 
