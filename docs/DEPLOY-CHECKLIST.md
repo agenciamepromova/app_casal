@@ -1,24 +1,26 @@
 # Checklist de deploy
 
-## Supabase
+## Supabase de teste
 
-- [x] Executar `database/001_initial_schema.sql`.
-- [ ] Confirmar que as tabelas aparecem no Table Editor.
+- [ ] Executar `001_initial_schema.sql`, `002_workspace_invitations.sql` e `003_household_collaboration.sql` na ordem.
+- [ ] Confirmar tabelas, funções, constraints e RLS.
 - [ ] Configurar confirmação de e-mail conforme o teste.
-- [ ] Copiar Project URL.
-- [ ] Copiar apenas a Publishable Key.
+- [ ] Testar convidado novo e já cadastrado.
+- [ ] Testar e-mail diferente, expirado, cancelado e reutilizado.
+- [ ] Testar isolamento com terceiro usuário.
 
-## GitHub
+## Aplicação
 
-- [ ] Enviar `app-web`, `database`, `docs`, `prototype` e `README.md`.
-- [ ] Não enviar `.env.local`.
-- [ ] Confirmar que `.gitignore` ignora arquivos `.env*`.
+- [x] Build local sem erro com variáveis públicas de build.
+- [x] TypeScript sem erro.
+- [x] Lint sem erro.
+- [ ] Testar entradas, saídas, saldo e histórico após a migration.
+- [ ] Testar atualização, logout e novo login sem troca de household.
 
 ## Vercel
 
-- [ ] Root Directory: `app-web`.
-- [ ] Framework Preset: Next.js.
-- [ ] Adicionar `NEXT_PUBLIC_SUPABASE_URL`.
-- [ ] Adicionar `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
-- [ ] Fazer novo deploy.
-- [ ] Testar cadastro, login e movimentações.
+- [ ] Root Directory `app-web` e variáveis públicas configuradas.
+- [ ] Criar preview da branch; não publicar em produção.
+- [ ] Repetir o fluxo completo Nikson/Brenda no preview.
+- [ ] Registrar URL e evidências.
+- [ ] Aprovar produção somente após todos os itens anteriores.

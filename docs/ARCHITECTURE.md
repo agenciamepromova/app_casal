@@ -2,29 +2,28 @@
 
 ## Aplicação
 
-- Next.js com App Router.
-- TypeScript.
-- React.
-- Supabase para Auth e PostgreSQL.
-- Vercel para deploy.
-- GitHub como fonte oficial.
+Next.js App Router, TypeScript, React, Supabase Auth/PostgreSQL, Vercel e GitHub.
 
 ## Multi-tenant
 
-O `household` é o workspace/tenant. Dados financeiros possuem `household_id`. A tabela `household_members` relaciona usuários e workspaces.
+`households` é o tenant. `household_members` vincula usuários. Todas as entidades financeiras usam `household_id`. O household ativo é persistido em `profiles.active_household_id` e resolvido por `get_active_household()`; é proibido escolher membership arbitrariamente com `limit(1)`.
+
+Roles canônicas: `owner`, `admin`, `member`. Convites só atribuem `admin` ou `member`.
+
+## Convites
+
+Criação, cancelamento e aceite usam RPCs `security definer` com autorização. O aceite bloqueia a linha, valida usuário, e-mail, estado e expiração; cria o membership, marca o convite e persiste o household ativo atomicamente. Um household automático só é removido se for do convidado, não tiver movimentações e não possuir outro membro.
 
 ## Segurança
 
-- Publishable key no cliente.
-- Nenhuma secret key no navegador ou GitHub.
-- RLS habilitada nas tabelas expostas.
-- Políticas verificam participação no household.
-- Futuras ações administrativas serão feitas exclusivamente no servidor.
+- somente chave publicável no navegador;
+- RLS nas tabelas expostas;
+- membros ativos acessam somente seu household;
+- Owner/Admin gerenciam convites;
+- escritas de convite não são feitas diretamente pelo cliente;
+- teste negativo com terceiro usuário é obrigatório.
 
 ## Convenções
 
-- Banco e código técnico em inglês.
-- Interface em português.
-- Migrações numeradas em `database/`.
-- Funcionalidades entram primeiro no backlog.
-- Cada sprint termina com uma versão testável.
+Banco e código em inglês, interface em português, migrations numeradas, mudanças em branch e sprint encerrada somente com versão testável.
+
