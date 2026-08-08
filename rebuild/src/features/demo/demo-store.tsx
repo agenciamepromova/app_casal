@@ -1,30 +1,119 @@
 "use client";
-import { createContext,useCallback,useContext,useEffect,useMemo,useState } from "react";
+
 import { createBrowserClient } from "@supabase/ssr";
-import { demoState,freshState } from "@/domain/demo-data";
-import type { Account,AppState,Category,Goal,Invite,Project,Transaction } from "@/domain/types";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { demoState, freshState } from "@/domain/demo-data";
+import type { Account, AppState, Category, Commitment, Goal, Invite, Project, Transaction } from "@/domain/types";
 
-const KEY="plano-a-dois-rebuild-v2";
-const url=process.env.NEXT_PUBLIC_SUPABASE_URL;
-const key=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-type Store={state:AppState;ready:boolean;online:boolean;save:(next:AppState)=>void;login:(email:string,password:string)=>Promise<void>;signup:(name:string,email:string,password:string)=>Promise<void>;recover:(email:string)=>Promise<void>;logout:()=>Promise<void>;completeOnboarding:(name:string,household:string)=>Promise<void>;addTransaction:(x:Transaction)=>void;updateTransaction:(x:Transaction)=>void;removeTransaction:(id:string)=>void;addAccount:(x:Account)=>void;updateAccount:(x:Account)=>void;addCategory:(x:Category)=>void;updateCategory:(x:Category)=>void;addProject:(x:Project)=>void;addGoal:(x:Goal)=>void;updateGoal:(x:Goal)=>void;addInvite:(x:Invite)=>void;removeInvite:(id:string)=>void;setTheme:(theme:"dark"|"light"|"system")=>void;reset:()=>void};
-const Context=createContext<Store|null>(null);
+const KEY = "plano-a-dois-rebuild-v3";
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-export function DemoProvider({children}:{children:React.ReactNode}){
- const[state,setState]=useState<AppState>(demoState);const[ready,setReady]=useState(false);
- const client=useMemo(()=>url&&key?createBrowserClient(url,key):null,[]);const online=Boolean(client);
- const loadRemote=useCallback(async()=>{if(!client)return;const{data:{user}}=await client.auth.getUser();if(!user){setState({...freshState(),session:false,demo:false});return}const{data:profile,error}=await client.from("profiles").select("full_name,active_household_id,theme").eq("id",user.id).single();if(error)throw error;const householdId=profile.active_household_id as string|undefined;if(!householdId){setState({...freshState(),session:true,onboarded:false,demo:false,user:{name:profile.full_name,email:user.email??"",theme:profile.theme},household:{name:"",activeId:""},transactions:[],accounts:[],categories:[],projects:[],members:[],invites:[]});return}const[households,accounts,categories,transactions,projects,members]=await Promise.all([client.from("households").select("name").eq("id",householdId).single(),client.from("accounts").select("*").eq("household_id",householdId),client.from("categories").select("*").eq("household_id",householdId),client.from("transactions").select("*").eq("household_id",householdId).is("deleted_at",null).order("transaction_date",{ascending:false}),client.from("projects").select("*").eq("household_id",householdId),client.rpc("get_household_members",{p_household_id:householdId})]);
- const nameById=new Map((members.data??[]).map((m:any)=>[m.user_id,String(m.full_name).split(" ")[0]]));setState({...freshState(),session:true,onboarded:true,demo:false,user:{name:profile.full_name,email:user.email??"",theme:profile.theme},household:{name:households.data?.name??"Nosso espaço",activeId:householdId},accounts:(accounts.data??[]).map((a:any)=>({id:a.id,name:a.name,kind:a.kind,openingBalanceCents:Number(a.opening_balance_cents),color:a.color,active:a.active})),categories:(categories.data??[]).map((c:any)=>({id:c.id,name:c.name,type:c.type,icon:c.icon,color:c.color,active:c.active})),projects:(projects.data??[]).map((p:any)=>({id:p.id,name:p.name,client:p.client_name??undefined,status:p.status,expectedRevenueCents:p.expected_revenue_cents==null?undefined:Number(p.expected_revenue_cents),startDate:p.start_date??undefined})),transactions:(transactions.data??[]).map((t:any)=>({id:t.id,type:t.type,amountCents:Number(t.amount_cents),description:t.description,date:t.transaction_date,accountId:t.account_id,categoryId:t.category_id,projectId:t.project_id??undefined,owner:(nameById.get(t.created_by)??"Casal") as Transaction["owner"],notes:t.notes??undefined,recurring:t.recurring})),members:(members.data??[]).map((m:any)=>({id:m.user_id,name:m.full_name,email:m.email,role:m.role,status:"active",initials:String(m.full_name).split(" ").map((part:string)=>part[0]).join("").slice(0,2)})),invites:[]});},[client]);
- useEffect(()=>{const timer=window.setTimeout(()=>{if(client){loadRemote().catch(()=>setState({...freshState(),session:false,demo:false})).finally(()=>setReady(true))}else{try{const raw=localStorage.getItem(KEY);if(raw)setState(JSON.parse(raw) as AppState)}catch{localStorage.removeItem(KEY)}setReady(true)}},0);return()=>clearTimeout(timer)},[client,loadRemote]);
- useEffect(()=>{const theme=state.user.theme??"system";document.documentElement.dataset.theme=theme;if(theme==="system")document.documentElement.dataset.theme=matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"},[state.user.theme]);
- const save=useCallback((next:AppState)=>{setState(next);if(!client)localStorage.setItem(KEY,JSON.stringify(next))},[client]);const patch=useCallback((data:Partial<AppState>)=>save({...state,...data}),[save,state]);
- const withUser=useCallback(async()=>{if(!client)throw new Error("Supabase não configurado");const{data:{user}}=await client.auth.getUser();if(!user)throw new Error("Sessão expirada");return user},[client]);
- const value=useMemo<Store>(()=>({state,ready,online,save,
-  login:async(email,password)=>{if(!client){patch({session:true,user:{...state.user,email}});return}const{error}=await client.auth.signInWithPassword({email,password});if(error)throw error;await loadRemote()},
-  signup:async(name,email,password)=>{if(!client){patch({session:true,onboarded:false,user:{name,email,theme:"system"}});return}const{error}=await client.auth.signUp({email,password,options:{data:{full_name:name}}});if(error)throw error;await loadRemote()},recover:async email=>{if(!client)return;const{error}=await client.auth.resetPasswordForEmail(email,{redirectTo:`${location.origin}/login`});if(error)throw error},logout:async()=>{if(client)await client.auth.signOut();patch({session:false})},
-  completeOnboarding:async(name,household)=>{if(client){await client.from("profiles").update({full_name:name}).eq("id",(await withUser()).id);const{error}=await client.rpc("create_household",{p_name:household});if(error)throw error;await loadRemote()}else patch({onboarded:true,user:{...state.user,name},household:{name:household,activeId:"demo-household"}})},
-  addTransaction:x=>{patch({transactions:[x,...state.transactions]});if(client)void withUser().then(user=>client.from("transactions").insert({id:x.id,household_id:state.household.activeId,account_id:x.accountId,category_id:x.categoryId||null,project_id:x.projectId||null,created_by:user.id,type:x.type,amount_cents:x.amountCents,description:x.description,notes:x.notes||null,transaction_date:x.date,recurring:Boolean(x.recurring)}))},updateTransaction:x=>{patch({transactions:state.transactions.map(t=>t.id===x.id?x:t)});if(client)void client.from("transactions").update({account_id:x.accountId,category_id:x.categoryId||null,project_id:x.projectId||null,type:x.type,amount_cents:x.amountCents,description:x.description,notes:x.notes||null,transaction_date:x.date,recurring:Boolean(x.recurring)}).eq("id",x.id)},removeTransaction:id=>{patch({transactions:state.transactions.filter(t=>t.id!==id)});if(client)void client.from("transactions").update({deleted_at:new Date().toISOString()}).eq("id",id)},
-  addAccount:x=>{patch({accounts:[...state.accounts,x]});if(client)void client.from("accounts").insert({id:x.id,household_id:state.household.activeId,name:x.name,kind:x.kind,opening_balance_cents:x.openingBalanceCents,color:x.color,active:x.active})},updateAccount:x=>{patch({accounts:state.accounts.map(a=>a.id===x.id?x:a)});if(client)void client.from("accounts").update({name:x.name,kind:x.kind,opening_balance_cents:x.openingBalanceCents,color:x.color,active:x.active}).eq("id",x.id)},addCategory:x=>{patch({categories:[...state.categories,x]});if(client)void client.from("categories").insert({id:x.id,household_id:state.household.activeId,name:x.name,type:x.type,icon:x.icon,color:x.color,active:x.active})},updateCategory:x=>{patch({categories:state.categories.map(c=>c.id===x.id?x:c)});if(client)void client.from("categories").update({name:x.name,icon:x.icon,color:x.color,active:x.active}).eq("id",x.id)},addProject:x=>{patch({projects:[...state.projects,x]});if(client)void withUser().then(user=>client.from("projects").insert({id:x.id,household_id:state.household.activeId,name:x.name,client_name:x.client||null,status:x.status,expected_revenue_cents:x.expectedRevenueCents??null,start_date:x.startDate??null,created_by:user.id}))},
-  addGoal:x=>patch({goals:[...state.goals,x]}),updateGoal:x=>patch({goals:state.goals.map(g=>g.id===x.id?x:g)}),addInvite:x=>patch({invites:[x,...state.invites]}),removeInvite:id=>patch({invites:state.invites.filter(i=>i.id!==id)}),setTheme:theme=>{patch({user:{...state.user,theme}});if(client)void withUser().then(user=>client.from("profiles").update({theme}).eq("id",user.id))},reset:()=>save({...freshState(),session:true})}),[client,loadRemote,online,patch,ready,save,state,withUser]);
- return <Context.Provider value={value}>{ready?children:<main className="page-loading">Preparando o espaço de vocês...</main>}</Context.Provider>}
+type AsyncAction<T> = (value: T) => Promise<void>;
+type Store = {
+  state: AppState; ready: boolean; online: boolean;
+  login:(email:string,password:string)=>Promise<void>; signup:(name:string,email:string,password:string)=>Promise<void>;
+  recover:(email:string)=>Promise<void>; logout:()=>Promise<void>; completeOnboarding:(name:string,household:string)=>Promise<void>;
+  updateProfile:(name:string)=>Promise<void>; setTheme:(theme:"dark"|"light"|"system")=>Promise<void>;
+  addTransaction:AsyncAction<Transaction>; updateTransaction:AsyncAction<Transaction>; removeTransaction:(id:string)=>Promise<void>;
+  addAccount:AsyncAction<Account>; updateAccount:AsyncAction<Account>;
+  addCategory:AsyncAction<Category>; updateCategory:AsyncAction<Category>;
+  addProject:AsyncAction<Project>; updateProject:AsyncAction<Project>;
+  addCommitment:AsyncAction<Commitment>; updateCommitment:AsyncAction<Commitment>; removeCommitment:(id:string)=>Promise<void>;
+  settleCommitment:(id:string,occurrenceDate:string,amountCents?:number)=>Promise<void>;
+  addGoal:AsyncAction<Goal>; updateGoal:AsyncAction<Goal>; contributeGoal:(goalId:string,amountCents:number,notes?:string)=>Promise<void>;
+  addInvite:(value:Invite)=>void; removeInvite:(id:string)=>void; reset:()=>void;
+};
+
+type Row = Record<string, unknown>;
+const Context = createContext<Store|null>(null);
+const text = (value:unknown) => value == null ? "" : String(value);
+const optional = (value:unknown) => value == null ? undefined : String(value);
+const cents = (value:unknown) => value == null ? undefined : Number(value);
+
+export function DemoProvider({children}:{children:React.ReactNode}) {
+  const [state,setState] = useState<AppState>(demoState);
+  const [ready,setReady] = useState(false);
+  const client = useMemo(() => url && key ? createBrowserClient(url,key) : null,[]);
+  const online = Boolean(client);
+
+  const loadRemote = useCallback(async () => {
+    if (!client) return;
+    const { data:{user}, error:userError } = await client.auth.getUser();
+    if (userError) throw userError;
+    if (!user) { setState({...freshState(),session:false,demo:false,commitments:[]}); return; }
+    const { data:profile,error:profileError } = await client.from("profiles").select("full_name,active_household_id,theme").eq("id",user.id).single();
+    if (profileError) throw profileError;
+    const householdId = text(profile.active_household_id);
+    if (!householdId) {
+      setState({...freshState(),session:true,onboarded:false,demo:false,user:{name:text(profile.full_name),email:user.email??"",theme:profile.theme},household:{name:"",activeId:""},transactions:[],accounts:[],categories:[],projects:[],commitments:[],goals:[],members:[],invites:[]});
+      return;
+    }
+    const [householdResult,accountsResult,categoriesResult,transactionsResult,projectsResult,commitmentsResult,goalsResult,contributionsResult,membersResult] = await Promise.all([
+      client.from("households").select("name").eq("id",householdId).single(),
+      client.from("accounts").select("*").eq("household_id",householdId).order("created_at"),
+      client.from("categories").select("*").eq("household_id",householdId).order("name"),
+      client.from("transactions").select("*").eq("household_id",householdId).is("deleted_at",null).order("transaction_date",{ascending:false}).limit(500),
+      client.from("projects").select("*").eq("household_id",householdId).order("created_at",{ascending:false}),
+      client.from("financial_commitments").select("*").eq("household_id",householdId).order("due_date"),
+      client.from("goals").select("*").eq("household_id",householdId).order("created_at",{ascending:false}),
+      client.from("goal_contributions").select("*").eq("household_id",householdId).order("contributed_at",{ascending:false}),
+      client.rpc("get_household_members",{p_household_id:householdId}),
+    ]);
+    const failure = [householdResult,accountsResult,categoriesResult,transactionsResult,projectsResult,commitmentsResult,goalsResult,contributionsResult,membersResult].find(result => result.error)?.error;
+    if (failure) throw failure;
+    const members = (membersResult.data??[]) as Row[];
+    const nameById = new Map(members.map(member => [text(member.user_id),text(member.full_name).split(" ")[0]]));
+    const contributions = (contributionsResult.data??[]) as Row[];
+    const goals:Goal[] = ((goalsResult.data??[]) as Row[]).map(goal => {
+      const items = contributions.filter(item => text(item.goal_id) === text(goal.id));
+      return {id:text(goal.id),name:text(goal.name),description:text(goal.description),targetCents:Number(goal.target_cents),currentCents:items.reduce((sum,item)=>sum+Number(item.amount_cents),0),dueDate:text(goal.due_date),icon:text(goal.icon),accountId:optional(goal.account_id),active:Boolean(goal.active),contributions:items.map(item=>({id:text(item.id),name:nameById.get(text(item.contributed_by))??"Integrante",amountCents:Number(item.amount_cents),date:text(item.contributed_at)}))};
+    });
+    setState({...freshState(),session:true,onboarded:true,demo:false,
+      user:{name:text(profile.full_name),email:user.email??"",theme:profile.theme}, household:{name:text(householdResult.data?.name)||"Nosso espaço",activeId:householdId},
+      accounts:((accountsResult.data??[]) as Row[]).map(item=>({id:text(item.id),name:text(item.name),kind:text(item.kind),openingBalanceCents:Number(item.opening_balance_cents),color:text(item.color),active:Boolean(item.active)})),
+      categories:((categoriesResult.data??[]) as Row[]).map(item=>({id:text(item.id),name:text(item.name),type:item.type as Category["type"],icon:text(item.icon),color:text(item.color),active:Boolean(item.active)})),
+      projects:((projectsResult.data??[]) as Row[]).map(item=>({id:text(item.id),name:text(item.name),client:optional(item.client_name),description:optional(item.description),status:item.status as Project["status"],contractedCents:cents(item.contracted_cents),expectedRevenueCents:cents(item.expected_revenue_cents),costBudgetCents:cents(item.cost_budget_cents),startDate:optional(item.start_date),dueDate:optional(item.due_date),responsibleId:optional(item.responsible_id),notes:optional(item.notes)})),
+      transactions:((transactionsResult.data??[]) as Row[]).map(item=>({id:text(item.id),type:item.type as Transaction["type"],amountCents:Number(item.amount_cents),description:text(item.description),date:text(item.transaction_date),dueDate:optional(item.due_date),settledAt:optional(item.settled_at),status:item.status as Transaction["status"],accountId:text(item.account_id),categoryId:text(item.category_id),projectId:optional(item.project_id),owner:(nameById.get(text(item.created_by))??"Casal") as Transaction["owner"],notes:optional(item.notes),recurring:Boolean(item.recurring),sourceCommitmentId:optional(item.source_commitment_id),sourceOccurrenceDate:optional(item.source_occurrence_date)})),
+      commitments:((commitmentsResult.data??[]) as Row[]).map(item=>({id:text(item.id),title:text(item.title),description:optional(item.description),type:item.type as Commitment["type"],amountCents:cents(item.amount_cents),dueDate:text(item.due_date),dueTime:optional(item.due_time),accountId:optional(item.account_id),categoryId:optional(item.category_id),projectId:optional(item.project_id),responsibleId:text(item.responsible_id),responsibleName:nameById.get(text(item.responsible_id))??"Integrante",status:item.status as Commitment["status"],recurrence:item.recurrence as Commitment["recurrence"],customInterval:cents(item.custom_interval),customUnit:item.custom_unit as Commitment["customUnit"],recurrenceEndsAt:optional(item.recurrence_ends_at),occurrenceLimit:cents(item.occurrence_limit),notes:optional(item.notes)})),
+      goals,
+      members:members.map(member=>({id:text(member.user_id),name:text(member.full_name),email:text(member.email),role:member.role as "owner"|"admin"|"member",status:"active",initials:text(member.full_name).split(" ").map(part=>part[0]).join("").slice(0,2)})),invites:[]});
+  },[client]);
+
+  useEffect(()=>{const timer=window.setTimeout(()=>{if(client)loadRemote().catch(()=>setState({...freshState(),session:false,demo:false,commitments:[]})).finally(()=>setReady(true));else{try{const raw=localStorage.getItem(KEY);if(raw)setState(JSON.parse(raw) as AppState)}catch{localStorage.removeItem(KEY)}setReady(true)}},0);return()=>clearTimeout(timer)},[client,loadRemote]);
+  useEffect(()=>{const preference=state.user.theme??"system";document.documentElement.dataset.theme=preference==="system"?(matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"):preference},[state.user.theme]);
+  const saveLocal=useCallback((next:AppState)=>{setState(next);localStorage.setItem(KEY,JSON.stringify(next))},[]);
+  const withUser=useCallback(async()=>{if(!client)throw new Error("Supabase não configurado");const{data:{user},error}=await client.auth.getUser();if(error||!user)throw new Error("Sua sessão expirou. Entre novamente.");return user},[client]);
+  const checked=useCallback(async <T,>(operation:PromiseLike<{data:T;error:unknown}>)=>{const result=await operation;if(result.error)throw result.error;return result.data},[]);
+
+  const value = useMemo<Store>(()=>({state,ready,online,
+    login:async(email,password)=>{if(!client){saveLocal({...state,session:true,user:{...state.user,email}});return}const{error}=await client.auth.signInWithPassword({email,password});if(error)throw new Error(error.message);await loadRemote()},
+    signup:async(name,email,password)=>{if(!client){saveLocal({...state,session:true,onboarded:false,user:{name,email,theme:"system"}});return}const{error}=await client.auth.signUp({email,password,options:{data:{full_name:name}}});if(error)throw new Error(error.message);await loadRemote()},
+    recover:async email=>{if(!client)return;const{error}=await client.auth.resetPasswordForEmail(email,{redirectTo:`${location.origin}/login`});if(error)throw new Error(error.message)},
+    logout:async()=>{if(client)await client.auth.signOut();setState({...freshState(),session:false,demo:!client,commitments:[]})},
+    completeOnboarding:async(name,household)=>{if(!client){saveLocal({...state,onboarded:true,user:{...state.user,name},household:{name:household,activeId:"demo-household"}});return}const user=await withUser();await checked(client.from("profiles").update({full_name:name}).eq("id",user.id));await checked(client.rpc("create_household",{p_name:household}));await loadRemote()},
+    updateProfile:async name=>{if(!client){saveLocal({...state,user:{...state.user,name}});return}const user=await withUser();await checked(client.from("profiles").update({full_name:name}).eq("id",user.id));await loadRemote()},
+    setTheme:async theme=>{if(!client){saveLocal({...state,user:{...state.user,theme}});return}const user=await withUser();await checked(client.from("profiles").update({theme}).eq("id",user.id));setState(current=>({...current,user:{...current.user,theme}}))},
+    addTransaction:async item=>{if(!client){saveLocal({...state,transactions:[item,...state.transactions]});return}const user=await withUser();await checked(client.from("transactions").insert({id:item.id,household_id:state.household.activeId,account_id:item.accountId,category_id:item.categoryId||null,project_id:item.projectId||null,created_by:user.id,type:item.type,amount_cents:item.amountCents,description:item.description,notes:item.notes||null,transaction_date:item.date,due_date:item.dueDate||null,settled_at:item.status==="settled"?(item.settledAt||item.date):null,status:item.status,recurring:Boolean(item.recurring)}));await loadRemote()},
+    updateTransaction:async item=>{if(!client){saveLocal({...state,transactions:state.transactions.map(row=>row.id===item.id?item:row)});return}await checked(client.from("transactions").update({account_id:item.accountId,category_id:item.categoryId||null,project_id:item.projectId||null,type:item.type,amount_cents:item.amountCents,description:item.description,notes:item.notes||null,transaction_date:item.date,due_date:item.dueDate||null,settled_at:item.status==="settled"?(item.settledAt||item.date):null,status:item.status,recurring:Boolean(item.recurring)}).eq("id",item.id));await loadRemote()},
+    removeTransaction:async id=>{if(!client){saveLocal({...state,transactions:state.transactions.filter(item=>item.id!==id)});return}await checked(client.from("transactions").update({deleted_at:new Date().toISOString()}).eq("id",id));await loadRemote()},
+    addAccount:async item=>{if(!client){saveLocal({...state,accounts:[...state.accounts,item]});return}await checked(client.from("accounts").insert({id:item.id,household_id:state.household.activeId,name:item.name,kind:item.kind,opening_balance_cents:item.openingBalanceCents,color:item.color,active:item.active}));await loadRemote()},
+    updateAccount:async item=>{if(!client){saveLocal({...state,accounts:state.accounts.map(row=>row.id===item.id?item:row)});return}await checked(client.from("accounts").update({name:item.name,kind:item.kind,opening_balance_cents:item.openingBalanceCents,color:item.color,active:item.active}).eq("id",item.id));await loadRemote()},
+    addCategory:async item=>{if(!client){saveLocal({...state,categories:[...state.categories,item]});return}await checked(client.from("categories").insert({id:item.id,household_id:state.household.activeId,name:item.name,type:item.type,icon:item.icon,color:item.color,active:item.active}));await loadRemote()},
+    updateCategory:async item=>{if(!client){saveLocal({...state,categories:state.categories.map(row=>row.id===item.id?item:row)});return}await checked(client.from("categories").update({name:item.name,icon:item.icon,color:item.color,active:item.active}).eq("id",item.id));await loadRemote()},
+    addProject:async item=>{if(!client){saveLocal({...state,projects:[...state.projects,item]});return}const user=await withUser();await checked(client.from("projects").insert({id:item.id,household_id:state.household.activeId,name:item.name,client_name:item.client||null,description:item.description||null,status:item.status,contracted_cents:item.contractedCents??null,expected_revenue_cents:item.expectedRevenueCents??null,cost_budget_cents:item.costBudgetCents??null,start_date:item.startDate||null,due_date:item.dueDate||null,responsible_id:item.responsibleId||user.id,notes:item.notes||null,created_by:user.id}));await loadRemote()},
+    updateProject:async item=>{if(!client){saveLocal({...state,projects:state.projects.map(row=>row.id===item.id?item:row)});return}await checked(client.from("projects").update({name:item.name,client_name:item.client||null,description:item.description||null,status:item.status,contracted_cents:item.contractedCents??null,expected_revenue_cents:item.expectedRevenueCents??null,cost_budget_cents:item.costBudgetCents??null,start_date:item.startDate||null,due_date:item.dueDate||null,responsible_id:item.responsibleId||null,notes:item.notes||null}).eq("id",item.id));await loadRemote()},
+    addCommitment:async item=>{if(!client){saveLocal({...state,commitments:[...state.commitments,item]});return}const user=await withUser();await checked(client.from("financial_commitments").insert({id:item.id,household_id:state.household.activeId,title:item.title,description:item.description||null,type:item.type,amount_cents:item.amountCents??null,due_date:item.dueDate,due_time:item.dueTime||null,account_id:item.accountId||null,category_id:item.categoryId||null,project_id:item.projectId||null,responsible_id:item.responsibleId||user.id,status:item.status,recurrence:item.recurrence,custom_interval:item.customInterval??null,custom_unit:item.customUnit??null,recurrence_ends_at:item.recurrenceEndsAt||null,occurrence_limit:item.occurrenceLimit??null,notes:item.notes||null,created_by:user.id}));await loadRemote()},
+    updateCommitment:async item=>{if(!client){saveLocal({...state,commitments:state.commitments.map(row=>row.id===item.id?item:row)});return}await checked(client.from("financial_commitments").update({title:item.title,description:item.description||null,type:item.type,amount_cents:item.amountCents??null,due_date:item.dueDate,due_time:item.dueTime||null,account_id:item.accountId||null,category_id:item.categoryId||null,project_id:item.projectId||null,responsible_id:item.responsibleId,status:item.status,recurrence:item.recurrence,custom_interval:item.customInterval??null,custom_unit:item.customUnit??null,recurrence_ends_at:item.recurrenceEndsAt||null,occurrence_limit:item.occurrenceLimit??null,notes:item.notes||null}).eq("id",item.id));await loadRemote()},
+    removeCommitment:async id=>{const item=state.commitments.find(row=>row.id===id);if(!item)return;if(!client){saveLocal({...state,commitments:state.commitments.map(row=>row.id===id?{...row,status:"cancelled"}:row)});return}await checked(client.from("financial_commitments").update({status:"cancelled"}).eq("id",id));await loadRemote()},
+    settleCommitment:async(id,occurrenceDate,amountCents)=>{if(!client)throw new Error("Confirmação disponível somente no modo online.");await checked(client.rpc("settle_financial_commitment",{p_commitment_id:id,p_occurrence_date:occurrenceDate,p_amount_cents:amountCents??null}));await loadRemote()},
+    addGoal:async item=>{if(!client){saveLocal({...state,goals:[...state.goals,item]});return}const user=await withUser();await checked(client.from("goals").insert({id:item.id,household_id:state.household.activeId,name:item.name,description:item.description||null,target_cents:item.targetCents,due_date:item.dueDate||null,icon:item.icon,account_id:item.accountId||null,active:item.active,created_by:user.id}));await loadRemote()},
+    updateGoal:async item=>{if(!client){saveLocal({...state,goals:state.goals.map(row=>row.id===item.id?item:row)});return}await checked(client.from("goals").update({name:item.name,description:item.description||null,target_cents:item.targetCents,due_date:item.dueDate||null,icon:item.icon,account_id:item.accountId||null,active:item.active}).eq("id",item.id));await loadRemote()},
+    contributeGoal:async(goalId,amountCents,notes)=>{if(!client){const goal=state.goals.find(item=>item.id===goalId);if(goal)saveLocal({...state,goals:state.goals.map(item=>item.id===goalId?{...item,currentCents:item.currentCents+amountCents,contributions:[...item.contributions,{name:state.user.name,amountCents}]}:item)});return}const user=await withUser();await checked(client.from("goal_contributions").insert({goal_id:goalId,household_id:state.household.activeId,amount_cents:amountCents,contributed_by:user.id,notes:notes||null}));await loadRemote()},
+    addInvite:item=>setState(current=>({...current,invites:[item,...current.invites]})),removeInvite:id=>setState(current=>({...current,invites:current.invites.filter(item=>item.id!==id)})),
+    reset:()=>saveLocal({...freshState(),session:true}),
+  }),[checked,client,loadRemote,online,ready,saveLocal,state,withUser]);
+  return <Context.Provider value={value}>{ready?children:<main className="page-loading">Preparando o espaço de vocês...</main>}</Context.Provider>;
+}
+
 export function useDemo(){const value=useContext(Context);if(!value)throw new Error("DemoProvider ausente");return value}

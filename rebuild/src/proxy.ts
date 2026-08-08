@@ -16,7 +16,22 @@ export async function proxy(request: NextRequest) {
       },
     },
   });
-  await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+  const publicPaths = ["/login", "/cadastro", "/recuperar-senha"];
+  const isPublic = publicPaths.includes(request.nextUrl.pathname);
+  const isPrivate = !isPublic && request.nextUrl.pathname !== "/";
+  if (!user && isPrivate) {
+    const destination = request.nextUrl.clone(); destination.pathname = "/login"; destination.search = "";
+    const redirect = NextResponse.redirect(destination);
+    response.cookies.getAll().forEach(cookie => redirect.cookies.set(cookie));
+    return redirect;
+  }
+  if (user && isPublic) {
+    const destination = request.nextUrl.clone(); destination.pathname = "/dashboard"; destination.search = "";
+    const redirect = NextResponse.redirect(destination);
+    response.cookies.getAll().forEach(cookie => redirect.cookies.set(cookie));
+    return redirect;
+  }
   return response;
 }
 
