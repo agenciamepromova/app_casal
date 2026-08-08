@@ -1,0 +1,1 @@
+export function inputToCents(raw:string){const value=raw.trim().replace(/\./g,"").replace(",",".");if(!/^\d+(\.\d{1,2})?$/.test(value))throw new Error("Informe um valor válido.");return Math.round(Number(value)*100)}

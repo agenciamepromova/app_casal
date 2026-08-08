@@ -1,0 +1,1 @@
+import {AuthFrame}from"@/components/auth/auth-frame";import{AuthForm}from"@/components/auth/auth-form";export default async function Signup({searchParams}:{searchParams:Promise<{next?:string;email?:string}>}){const query=await searchParams;return <AuthFrame><AuthForm mode="signup" next={query.next} email={query.email}/></AuthFrame>}
