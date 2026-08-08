@@ -1,0 +1,19 @@
+"use client";
+import { useState } from "react";
+import { Calendar, Plus, Sparkles, Target } from "lucide-react";
+import { Modal } from "@/components/ui/modal";
+import { PageHeading } from "@/components/ui/page-heading";
+import { useDemo } from "@/features/demo/demo-store";
+import { brl, dateBR, uid } from "@/lib/format";
+
+export default function GoalsPage() {
+  const { state, addGoal, updateGoal } = useDemo(); const [open, setOpen] = useState(false); const [deposit, setDeposit] = useState<string>();
+  function create(formData: FormData) { addGoal({ id: uid(), name: String(formData.get("name")), description: String(formData.get("description")), targetCents: Math.round(Number(formData.get("target")) * 100), currentCents: 0, dueDate: String(formData.get("date")), icon: String(formData.get("icon")), contributions: [] }); setOpen(false); }
+  function contribute(formData: FormData) { const goal = state.goals.find((item) => item.id === deposit); if (!goal) return; const amount = Math.round(Number(formData.get("amount")) * 100); updateGoal({ ...goal, currentCents: goal.currentCents + amount, contributions: [...goal.contributions, { name: state.user.name, amountCents: amount }] }); setDeposit(undefined); }
+  return <><PageHeading eyebrow="PLANOS COM PROPÓSITO" title="Metas do casal" description="Sonhos ficam mais próximos quando ganham nome, prazo e um plano conjunto." action={<button className="primary-button compact" onClick={() => setOpen(true)}><Plus /> Nova meta</button>} />
+    <section className="goal-summary"><Target /><div><span>Vocês já reservaram</span><strong>{brl(state.goals.reduce((sum, goal) => sum + goal.currentCents, 0))}</strong><p>para {state.goals.length} sonhos compartilhados</p></div><Sparkles /></section>
+    <section className="goals-grid">{state.goals.map((goal) => { const pct = Math.min(100, Math.round(goal.currentCents / goal.targetCents * 100)); return <article className="goal-card" key={goal.id}><header><i>{goal.icon}</i><span>{pct}% concluída</span></header><h2>{goal.name}</h2><p>{goal.description}</p><div className="progress large"><i style={{ width: `${pct}%` }} /></div><div className="goal-values"><span><small>Já guardado</small><strong>{brl(goal.currentCents)}</strong></span><span><small>Objetivo</small><strong>{brl(goal.targetCents)}</strong></span></div><footer><span><Calendar /> Até {dateBR(goal.dueDate)}</span><button className="secondary-button" onClick={() => setDeposit(goal.id)}>Fazer aporte</button></footer></article>; })}</section>
+    <Modal open={open} onClose={() => setOpen(false)} title="Novo sonho" subtitle="Transforme uma intenção do casal em uma meta palpável."><form action={create} className="form-grid"><label>Ícone<input name="icon" defaultValue="✦" /></label><label>Valor desejado<input name="target" type="number" min="1" step="0.01" required /></label><label className="full">Nome<input name="name" required placeholder="Ex.: Lua de mel" /></label><label className="full">Descrição<textarea name="description" placeholder="Por que essa meta importa para vocês?" /></label><label className="full">Data desejada<input name="date" type="date" required /></label><div className="form-actions full"><button type="button" className="secondary-button" onClick={() => setOpen(false)}>Cancelar</button><button className="primary-button">Criar meta</button></div></form></Modal>
+    <Modal open={Boolean(deposit)} onClose={() => setDeposit(undefined)} title="Fazer aporte" subtitle="Cada passo conta na construção dos planos de vocês."><form action={contribute} className="form-grid"><label className="full">Valor do aporte<input name="amount" type="number" min="0.01" step="0.01" required autoFocus /></label><div className="form-actions full"><button type="button" className="secondary-button" onClick={() => setDeposit(undefined)}>Cancelar</button><button className="primary-button">Confirmar aporte</button></div></form></Modal>
+  </>;
+}

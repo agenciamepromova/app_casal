@@ -1,20 +1,5 @@
-export default function Home() {
-  return (
-    <main className="shell">
-      <section className="hero">
-        <p className="eyebrow">PLANO A DOIS</p>
-        <h1>Decisoes financeiras ficam mais leves quando sao compartilhadas.</h1>
-        <p className="lead">
-          Uma nova fundacao segura para o casal organizar entradas, despesas e planos no mesmo espaco.
-        </p>
-        <div className="status-card">
-          <span className="status-dot" aria-hidden="true" />
-          <div>
-            <strong>Reconstrucao em andamento</strong>
-            <p>Autenticacao SSR, isolamento por casal e banco reproduzivel desde o primeiro dia.</p>
-          </div>
-        </div>
-      </section>
-    </main>
-  );
-}
+"use client";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useDemo } from "@/features/demo/demo-store";
+export default function Home(){const{state,ready}=useDemo(),router=useRouter();useEffect(()=>{if(ready)router.replace(state.session?(state.onboarded?"/dashboard":"/onboarding"):"/login")},[ready,router,state.onboarded,state.session]);return <main className="splash"><div className="brand-mark">PA</div><div className="loader"/><p>Preparando o espaço de vocês...</p></main>}

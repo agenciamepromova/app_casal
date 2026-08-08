@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./styles.css";
+import "./components.css";
+import { DemoProvider } from "@/features/demo/demo-store";
 
 export const metadata: Metadata = {
   title: "Plano a Dois",
@@ -9,7 +11,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pt-BR">
-      <body>{children}</body>
+      <body><DemoProvider>{children}</DemoProvider></body>
     </html>
   );
 }
