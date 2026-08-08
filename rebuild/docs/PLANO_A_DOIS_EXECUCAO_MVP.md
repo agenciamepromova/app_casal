@@ -8,7 +8,7 @@ Entregar o núcleo financeiro online para Nikson e Brenda: autenticação indivi
 
 - Projeto Supabase autorizado: `qeuiiixxwfndczjlxkqi`.
 - Projeto CRM proibido: `ekwxkqjhxgwucbagvtov`.
-- Migrations do MVP: `20260808125831_rebuild_mvp_online.sql`, `20260808133457_mvp_supporting_indexes.sql` e `20260808141315_financial_schedule_and_goals.sql`.
+- Migrations do MVP: `20260808125831_rebuild_mvp_online.sql`, `20260808133457_mvp_supporting_indexes.sql` e `20260808143544_financial_schedule_and_goals.sql`.
 - Aplicação: `rebuild/` na branch `feat/rebuild-foundation`.
 
 ## Estado desta execução
