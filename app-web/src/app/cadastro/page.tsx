@@ -1,2 +1,3 @@
 import { AuthForm } from '@/components/AuthForm'
-export default function CadastroPage(){ return <AuthForm mode="signup" /> }
+import { Suspense } from 'react'
+export default function CadastroPage(){ return <Suspense fallback={<main className="center-screen"><div className="loader" /></main>}><AuthForm mode="signup" /></Suspense> }

@@ -1,25 +1,22 @@
 # Roadmap
 
 ## V0.1 — Protótipo
-Status: concluída.
+
+Concluída.
 
 ## V1 — Caixa do casal
-Login real, workspace, contas, categorias, movimentações, saldo e histórico.
+
+Login, workspace, contas, categorias, movimentações, saldo e histórico.
+
+## Marco obrigatório antes de V1.1
+
+Convite → aceite → dois logins → mesmo household → mesmo dashboard, incluindo persistência da escolha e isolamento externo. Implementação em validação; não concluída sem preview e teste integrado.
 
 ## V1.1 — Uso diário
-Edição, filtros, recorrências, contas e categorias personalizadas, convite do parceiro.
 
-## V1.2 — Planejamento
-Cartões, parcelas, orçamento e fechamento mensal.
+Edição, filtros, recorrências, contas e categorias personalizadas.
 
-## V2 — Vida a dois
-Sonhos, metas, projetos, agenda e linha do tempo.
+## V2+
 
-## V3 — Elo
-Assistente para registrar, consultar e planejar por conversa.
+Planejamento, vida a dois, Elo, SaaS e mobile permanecem fora do escopo atual.
 
-## V4 — SaaS
-Planos, trial, assinatura recorrente, painel de cobrança e métricas.
-
-## V5 — Mobile
-Aplicativos Android e iOS com base compartilhada.
