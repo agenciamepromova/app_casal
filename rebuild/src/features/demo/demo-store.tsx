@@ -32,8 +32,13 @@ const Context = createContext<Store|null>(null);
 const text = (value:unknown) => value == null ? "" : String(value);
 const optional = (value:unknown) => value == null ? undefined : String(value);
 const cents = (value:unknown) => value == null ? undefined : Number(value);
-const legacyFoodCategory=["Alimenta",String.fromCharCode(195,167,195,163),"o"].join("");
-const categoryName=(value:unknown)=>{const name=text(value);return name===legacyFoodCategory?"Alimentação":name};
+const legacyCategoryNames = new Map([
+  [["Alimenta", String.fromCharCode(195, 167, 195, 163), "o"].join(""), "Alimentação"],
+  [["Sa", String.fromCharCode(195, 186), "de"].join(""), "Saúde"],
+  [["Sal", String.fromCharCode(195, 161), "rio"].join(""), "Salário"],
+  [["Servi", String.fromCharCode(195, 167), "os"].join(""), "Serviços"],
+]);
+const categoryName = (value: unknown) => { const name = text(value); return legacyCategoryNames.get(name) ?? name; };
 
 export function DemoProvider({children}:{children:React.ReactNode}) {
   const [state,setState] = useState<AppState>(demoState);

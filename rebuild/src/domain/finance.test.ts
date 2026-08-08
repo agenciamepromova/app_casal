@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { availableBalance, projectedBalance, projectResult } from "./finance";
+import { availableBalance, percentageLabel, projectedBalance, projectResult } from "./finance";
 import { commitmentOccurrences } from "./recurrence";
 import type { Account, Commitment, Transaction } from "./types";
 
@@ -27,5 +27,17 @@ describe("regras financeiras", () => {
   });
   it("respeita limite de ocorrências", () => {
     expect(commitmentOccurrences(commitment({ recurrence:"weekly", occurrenceLimit:2 }), "2026-08-01", "2026-12-31")).toHaveLength(2);
+  });
+});
+
+describe("percentuais financeiros", () => {
+  it("distingue zero de um valor positivo inferior a 1%", () => {
+    expect(percentageLabel(0, 301)).toBe("0%");
+    expect(percentageLabel(1, 301)).toBe("<1%");
+  });
+
+  it("evita divisão inválida e arredonda somente a apresentação", () => {
+    expect(percentageLabel(100, 0)).toBe("0%");
+    expect(percentageLabel(150, 301)).toBe("50%");
   });
 });

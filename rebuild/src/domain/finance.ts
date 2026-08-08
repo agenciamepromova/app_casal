@@ -28,3 +28,10 @@ export function projectResult(transactions: Transaction[], projectId: string) {
   const plannedExpense = items.filter(item => item.type === "expense" && item.status !== "cancelled").reduce((sum, item) => sum + item.amountCents, 0);
   return { realizedIncome, realizedExpense, realized: realizedIncome - realizedExpense, projected: plannedIncome - plannedExpense };
 }
+
+export function percentageLabel(value: number, total: number) {
+  if (!Number.isFinite(value) || !Number.isFinite(total) || value <= 0 || total <= 0) return "0%";
+  const percentage = value / total * 100;
+  if (percentage < 1) return "<1%";
+  return `${Math.round(percentage)}%`;
+}
