@@ -32,8 +32,8 @@ const Context = createContext<Store|null>(null);
 const text = (value:unknown) => value == null ? "" : String(value);
 const optional = (value:unknown) => value == null ? undefined : String(value);
 const cents = (value:unknown) => value == null ? undefined : Number(value);
-const legacyCategoryNames:Record<string,string>={"Alimenta\u00c3\u00a7\u00c3\u00a3o":"Alimentação"};
-const categoryName=(value:unknown)=>{const name=text(value);return legacyCategoryNames[name]??name};
+const legacyFoodCategory=["Alimenta",String.fromCharCode(195,167,195,163),"o"].join("");
+const categoryName=(value:unknown)=>{const name=text(value);return name===legacyFoodCategory?"Alimentação":name};
 
 export function DemoProvider({children}:{children:React.ReactNode}) {
   const [state,setState] = useState<AppState>(demoState);
