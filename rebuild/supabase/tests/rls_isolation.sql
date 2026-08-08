@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(19);
+select plan(27);
 
 insert into auth.users(id,email,role,aud,raw_app_meta_data,raw_user_meta_data,is_sso_user,is_anonymous,created_at,updated_at) values
  ('11111111-1111-1111-1111-111111111111','nikson@example.test','authenticated','authenticated','{}','{"full_name":"Nikson"}',false,false,now(),now()),
@@ -27,6 +27,15 @@ insert into public.transactions(id,household_id,account_id,category_id,created_b
 insert into public.household_invitations(id,household_id,email_normalized,role,token_hash,invited_by,expires_at) values
  ('a4444444-4444-4444-4444-444444444444','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','nikson@example.test','member',digest('valid-token','sha256'),'11111111-1111-1111-1111-111111111111',now()+interval '1 day'),
  ('a5555555-5555-5555-5555-555555555555','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','brenda@example.test','member',digest('expired-token','sha256'),'11111111-1111-1111-1111-111111111111',now()-interval '1 day');
+insert into public.financial_commitments(id,household_id,title,type,amount_cents,due_date,account_id,category_id,responsible_id,created_by) values
+ ('a6666666-6666-6666-6666-666666666666','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','Receber cliente','receivable',25000,current_date,'a1111111-1111-1111-1111-111111111111','a2222222-2222-2222-2222-222222222222','11111111-1111-1111-1111-111111111111','11111111-1111-1111-1111-111111111111'),
+ ('b6666666-6666-6666-6666-666666666666','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','Conta externa','receivable',10000,current_date,'b1111111-1111-1111-1111-111111111111','b2222222-2222-2222-2222-222222222222','33333333-3333-3333-3333-333333333333','33333333-3333-3333-3333-333333333333');
+insert into public.goals(id,household_id,name,target_cents,created_by) values
+ ('a7777777-7777-7777-7777-777777777777','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','Reserva',100000,'11111111-1111-1111-1111-111111111111'),
+ ('b7777777-7777-7777-7777-777777777777','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','Meta externa',100000,'33333333-3333-3333-3333-333333333333');
+insert into public.goal_contributions(goal_id,household_id,amount_cents,contributed_by) values
+ ('a7777777-7777-7777-7777-777777777777','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',10000,'11111111-1111-1111-1111-111111111111'),
+ ('b7777777-7777-7777-7777-777777777777','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',10000,'33333333-3333-3333-3333-333333333333');
 
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"11111111-1111-1111-1111-111111111111","email":"nikson@example.test","role":"authenticated"}',true);
@@ -35,6 +44,9 @@ select is((select count(*)::int from public.households),1,'Nikson acessa o house
 select is((select count(*)::int from public.accounts),1,'Nikson acessa a conta compartilhada');
 select is((select count(*)::int from public.categories),1,'Nikson acessa a categoria compartilhada');
 select is((select count(*)::int from public.transactions),1,'Nikson acessa a transacao compartilhada');
+select is((select count(*)::int from public.financial_commitments),1,'Nikson acessa os compromissos do casal');
+select is((select count(*)::int from public.goals),1,'Nikson acessa as metas do casal');
+select is((select count(*)::int from public.goal_contributions),1,'Nikson acessa os aportes do casal');
 select is((select count(*)::int from public.households where id='bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),0,'Nikson nao acessa household externo');
 
 reset role;
@@ -44,12 +56,17 @@ select is((select count(*)::int from public.households),1,'Brenda acessa o mesmo
 select is((select count(*)::int from public.accounts),1,'Brenda visualiza a mesma conta');
 select is((select count(*)::int from public.categories),1,'Brenda visualiza a mesma categoria');
 select is((select count(*)::int from public.transactions),1,'Brenda visualiza a mesma transacao');
+select is((select count(*)::int from public.financial_commitments),1,'Brenda visualiza os mesmos compromissos');
+select is((select count(*)::int from public.goals),1,'Brenda visualiza as mesmas metas');
+select is((select count(*)::int from public.goal_contributions),1,'Brenda visualiza os mesmos aportes');
 select is((select count(*)::int from public.households where id='bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),0,'Brenda nao acessa household externo');
 
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"33333333-3333-3333-3333-333333333333","email":"terceiro@example.test","role":"authenticated"}',true);
 select is((select count(*)::int from public.transactions where household_id='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),0,'Terceiro nao le transacoes do casal');
+select is((select count(*)::int from public.financial_commitments where household_id='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),0,'Terceiro nao le compromissos do casal');
+select throws_ok($$insert into public.financial_commitments(household_id,title,type,due_date,responsible_id,created_by) values('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','Ataque','event',current_date,'33333333-3333-3333-3333-333333333333','33333333-3333-3333-3333-333333333333')$$,'42501',null,'Terceiro nao insere compromissos no household do casal');
 select throws_ok($$insert into public.transactions(household_id,account_id,category_id,created_by,type,amount_cents,description) values('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','a1111111-1111-1111-1111-111111111111','a2222222-2222-2222-2222-222222222222','33333333-3333-3333-3333-333333333333','expense',100,'Ataque')$$,'42501',null,'Terceiro nao insere no household do casal');
 select results_eq($$update public.transactions set description='Alterada' where id='a3333333-3333-3333-3333-333333333333' returning 1$$,$$select 1 where false$$,'Terceiro nao altera dados do casal');
 select results_eq($$delete from public.transactions where id='a3333333-3333-3333-3333-333333333333' returning 1$$,$$select 1 where false$$,'Terceiro nao exclui dados do casal');
