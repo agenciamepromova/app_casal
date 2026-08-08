@@ -85,7 +85,18 @@ export function DemoProvider({children}:{children:React.ReactNode}) {
   },[client]);
 
   useEffect(()=>{const timer=window.setTimeout(()=>{if(client)loadRemote().catch(()=>setState({...freshState(),session:false,demo:false,commitments:[]})).finally(()=>setReady(true));else{try{const raw=localStorage.getItem(KEY);if(raw)setState(JSON.parse(raw) as AppState)}catch{localStorage.removeItem(KEY)}setReady(true)}},0);return()=>clearTimeout(timer)},[client,loadRemote]);
-  useEffect(()=>{const preference=state.user.theme??"system";document.documentElement.dataset.theme=preference==="system"?(matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"):preference},[state.user.theme]);
+  useEffect(()=>{
+    const preference=state.user.theme??"system";
+    const media=window.matchMedia("(prefers-color-scheme: light)");
+    const apply=()=>{
+      document.documentElement.dataset.theme=preference==="system"?(media.matches?"light":"dark"):preference;
+      document.documentElement.dataset.themePreference=preference;
+    };
+    apply();
+    if(preference!=="system")return;
+    media.addEventListener("change",apply);
+    return()=>media.removeEventListener("change",apply);
+  },[state.user.theme]);
   const saveLocal=useCallback((next:AppState)=>{setState(next);localStorage.setItem(KEY,JSON.stringify(next))},[]);
   const withUser=useCallback(async()=>{if(!client)throw new Error("Supabase não configurado");const{data:{user},error}=await client.auth.getUser();if(error||!user)throw new Error("Sua sessão expirou. Entre novamente.");return user},[client]);
   const checked=useCallback(async <T,>(operation:PromiseLike<{data:T;error:unknown}>)=>{const result=await operation;if(result.error)throw result.error;return result.data},[]);

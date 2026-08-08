@@ -40,3 +40,10 @@
 .color-field input{min-height:28px;height:28px;padding:0;border:0;background:transparent}
 .form-hint{margin:0;color:var(--muted);font-size:.66rem;line-height:1.5;font-weight:400!important}
 @media(prefers-reduced-motion:reduce){.primary-button,.secondary-button,.icon-button,.metric,.panel,.category-cards article,.sidebar nav a>svg{transition:none}}
+.theme-options{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.theme-choice{position:relative;min-height:94px;padding:15px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.018);color:var(--text);display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;text-align:left;transition:transform .2s ease,border-color .2s ease,background .2s ease,box-shadow .2s ease}
+.theme-choice:hover{transform:translateY(-2px);border-color:rgba(219,173,67,.28)}
+.theme-choice.active{border-color:rgba(219,173,67,.5);background:linear-gradient(145deg,rgba(219,173,67,.12),rgba(219,173,67,.025));box-shadow:inset 0 1px rgba(255,255,255,.06),0 12px 28px rgba(0,0,0,.12)}
+.theme-choice-icon{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;color:var(--gold);background:rgba(219,173,67,.09);border:1px solid rgba(219,173,67,.14)}
+.theme-choice>span:nth-child(2){display:grid;gap:5px}.theme-choice strong{font-size:.76rem}.theme-choice small{font-size:.61rem;color:var(--muted);line-height:1.35}.theme-check{color:var(--gold)}
+@media(max-width:680px){.theme-options{grid-template-columns:1fr}.theme-choice{min-height:76px}}
