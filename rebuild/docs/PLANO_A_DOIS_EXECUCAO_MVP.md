@@ -8,7 +8,7 @@ Entregar o núcleo financeiro online para Nikson e Brenda: autenticação indivi
 
 - Projeto Supabase autorizado: `qeuiiixxwfndczjlxkqi`.
 - Projeto CRM proibido: `ekwxkqjhxgwucbagvtov`.
-- Migrations do MVP: `20260808125831_rebuild_mvp_online.sql` e `20260808133457_mvp_supporting_indexes.sql`.
+- Migrations do MVP: `20260808125831_rebuild_mvp_online.sql`, `20260808133457_mvp_supporting_indexes.sql` e `20260808141315_financial_schedule_and_goals.sql`.
 - Aplicação: `rebuild/` na branch `feat/rebuild-foundation`.
 
 ## Estado desta execução
@@ -17,8 +17,8 @@ Entregar o núcleo financeiro online para Nikson e Brenda: autenticação indivi
 - Usuários Auth de Nikson e Brenda preservados.
 - Household compartilhado recriado sem movimentações fictícias.
 - Categorias iniciais e uma conta principal criadas.
-- RLS local: 19/19 testes aprovados.
-- Lint, TypeScript, build e 3/3 testes unitários aprovados; `npm audit` sem vulnerabilidades.
+- RLS local: 27/27 testes aprovados, incluindo compromissos e metas.
+- Lint PostgreSQL sem erros; lint, TypeScript e build aprovados; 9/9 testes unitários aprovados.
 - Projetos adicionados ao MVP, sem funções de CRM.
 - Tema `dark`, `light` e `system` persistido em `profiles.theme`.
 - Interface conectada progressivamente ao Supabase quando as variáveis públicas estão configuradas.
@@ -34,6 +34,20 @@ Entregar o núcleo financeiro online para Nikson e Brenda: autenticação indivi
 - Criar uma movimentação com Brenda e confirmar a leitura por Nikson.
 - Repetir após recarga, logout e novo login.
 - Confirmar temas individuais e bloqueio de um terceiro usuário no Preview.
+
+## Acompanhamento do MVP
+
+| Módulo | Prioridade | Status | Evidência | Data | Commit | Pendência real |
+|---|---:|---|---|---|---|---|
+| Autenticação e rotas privadas | P0 | concluído | Auth Supabase e proteção no servidor | 2026-08-08 | este commit | Validar sessão expirada com os dois logins reais |
+| Persistência financeira | P0 | concluído | Supabase como fonte online; fallback local apenas offline | 2026-08-08 | este commit | Teste manual cruzado Nikson/Brenda |
+| Movimentações, contas e categorias | P0 | concluído | CRUD persistente, status e saldo realizado | 2026-08-08 | este commit | Arquivamento de registro em uso exige refinamento |
+| Dashboard e previsão | P0 | concluído | Realizado separado de pendente e projetado | 2026-08-08 | este commit | Comparação detalhada com mês anterior |
+| Agenda e recorrências | P0 | concluído | Janela calculada sem materialização; liquidação idempotente | 2026-08-08 | este commit | Editar/adiar somente uma ocorrência |
+| Projetos e resultado | P1 | concluído | Realizado e projetado separados por projeto | 2026-08-08 | este commit | Tela dedicada de detalhes |
+| Metas | P1 | concluído | Metas e aportes persistentes sem duplicar saldo | 2026-08-08 | este commit | Edição e arquivamento na interface |
+| Household e temas individuais | P1 | em execução | Mesmo household e `profiles.theme` persistente | 2026-08-08 | este commit | Convite completo e validação manual dos dois usuários |
+| Importação CSV | P2 | adiado | Fora do caminho crítico | 2026-08-08 | — | Pré-visualização, mapeamento e duplicidades |
 
 ## Critério de produção
 
