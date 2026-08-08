@@ -2,7 +2,7 @@ import type { AppState } from "./types";
 
 const iso=(daysAgo:number)=>{const d=new Date();d.setDate(d.getDate()-daysAgo);return d.toISOString().slice(0,10)};
 export const demoState:AppState={
-  version:2,session:false,onboarded:true,demo:true,user:{name:"Nikson",email:"nikson@demo.local"},household:{name:"Nikson & Brenda",activeId:"demo-household"},
+  version:2,session:false,onboarded:true,demo:true,user:{name:"Nikson",email:"nikson@demo.local",theme:"dark"},household:{name:"Nikson & Brenda",activeId:"demo-household"},
   accounts:[
     {id:"nubank",name:"Nubank do casal",kind:"Conta corrente",openingBalanceCents:645000,color:"#9b72ff",active:true},
     {id:"inter",name:"Banco Inter",kind:"Conta digital",openingBalanceCents:328000,color:"#f29a42",active:true},
@@ -22,6 +22,7 @@ export const demoState:AppState={
     {id:"t6",type:"expense",amountCents:185000,description:"Aluguel",date:iso(8),accountId:"inter",categoryId:"moradia",owner:"Casal",recurring:true},
     {id:"t7",type:"expense",amountCents:11990,description:"Internet residencial",date:iso(9),accountId:"nubank",categoryId:"moradia",owner:"Nikson",recurring:true},
   ],
+  projects:[{id:"p1",name:"Campanha de lançamento",client:"Cliente demonstrativo",status:"active",expectedRevenueCents:800000,startDate:new Date().toISOString().slice(0,10)}],
   goals:[
     {id:"g1",name:"Nossa casa",description:"Entrada para o primeiro imóvel do casal.",targetCents:12000000,currentCents:2750000,dueDate:"2029-12-01",icon:"⌂",contributions:[{name:"Nikson",amountCents:1450000},{name:"Brenda",amountCents:1300000}]},
     {id:"g2",name:"Viagem especial",description:"Uma experiência marcante para viver a dois.",targetCents:3000000,currentCents:850000,dueDate:"2027-07-01",icon:"✈",contributions:[{name:"Nikson",amountCents:450000},{name:"Brenda",amountCents:400000}]},

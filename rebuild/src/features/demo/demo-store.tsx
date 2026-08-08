@@ -1,44 +1,30 @@
 "use client";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { demoState, freshState } from "@/domain/demo-data";
-import type { Account, AppState, Category, Goal, Invite, Transaction } from "@/domain/types";
+import { createContext,useCallback,useContext,useEffect,useMemo,useState } from "react";
+import { createBrowserClient } from "@supabase/ssr";
+import { demoState,freshState } from "@/domain/demo-data";
+import type { Account,AppState,Category,Goal,Invite,Project,Transaction } from "@/domain/types";
 
-const KEY = "plano-a-dois-rebuild-v2";
-type Store = { state: AppState; ready: boolean; save: (next: AppState) => void; login: (email: string) => void; signup: (name: string, email: string) => void; logout: () => void; completeOnboarding: (name: string, household: string) => void; addTransaction: (item: Transaction) => void; updateTransaction: (item: Transaction) => void; removeTransaction: (id: string) => void; addAccount: (item: Account) => void; updateAccount: (item: Account) => void; addCategory: (item: Category) => void; updateCategory: (item: Category) => void; addGoal: (item: Goal) => void; updateGoal: (item: Goal) => void; addInvite: (item: Invite) => void; removeInvite: (id: string) => void; reset: () => void };
-const Context = createContext<Store | null>(null);
+const KEY="plano-a-dois-rebuild-v2";
+const url=process.env.NEXT_PUBLIC_SUPABASE_URL;
+const key=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+type Store={state:AppState;ready:boolean;online:boolean;save:(next:AppState)=>void;login:(email:string,password:string)=>Promise<void>;signup:(name:string,email:string,password:string)=>Promise<void>;recover:(email:string)=>Promise<void>;logout:()=>Promise<void>;completeOnboarding:(name:string,household:string)=>Promise<void>;addTransaction:(x:Transaction)=>void;updateTransaction:(x:Transaction)=>void;removeTransaction:(id:string)=>void;addAccount:(x:Account)=>void;updateAccount:(x:Account)=>void;addCategory:(x:Category)=>void;updateCategory:(x:Category)=>void;addProject:(x:Project)=>void;addGoal:(x:Goal)=>void;updateGoal:(x:Goal)=>void;addInvite:(x:Invite)=>void;removeInvite:(id:string)=>void;setTheme:(theme:"dark"|"light"|"system")=>void;reset:()=>void};
+const Context=createContext<Store|null>(null);
 
-export function DemoProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<AppState>(demoState);
-  const [ready, setReady] = useState(false);
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      try { const stored = localStorage.getItem(KEY); if (stored) setState(JSON.parse(stored) as AppState); } catch { localStorage.removeItem(KEY); }
-      setReady(true);
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, []);
-  const save = useCallback((next: AppState) => { setState(next); localStorage.setItem(KEY, JSON.stringify(next)); }, []);
-  const patch = useCallback((data: Partial<AppState>) => save({ ...state, ...data }), [save, state]);
-  const value = useMemo<Store>(() => ({
-    state, ready, save,
-    login: (email) => patch({ session: true, user: { ...state.user, email } }),
-    signup: (name, email) => patch({ session: true, onboarded: false, user: { name, email }, household: { name: "", activeId: "" }, transactions: [], goals: [], invites: [] }),
-    logout: () => patch({ session: false }),
-    completeOnboarding: (name, household) => patch({ onboarded: true, user: { ...state.user, name }, household: { name: household, activeId: "demo-household" } }),
-    addTransaction: (item) => patch({ transactions: [item, ...state.transactions] }),
-    updateTransaction: (item) => patch({ transactions: state.transactions.map((current) => current.id === item.id ? item : current) }),
-    removeTransaction: (id) => patch({ transactions: state.transactions.filter((item) => item.id !== id) }),
-    addAccount: (item) => patch({ accounts: [...state.accounts, item] }),
-    updateAccount: (item) => patch({ accounts: state.accounts.map((current) => current.id === item.id ? item : current) }),
-    addCategory: (item) => patch({ categories: [...state.categories, item] }),
-    updateCategory: (item) => patch({ categories: state.categories.map((current) => current.id === item.id ? item : current) }),
-    addGoal: (item) => patch({ goals: [...state.goals, item] }),
-    updateGoal: (item) => patch({ goals: state.goals.map((current) => current.id === item.id ? item : current) }),
-    addInvite: (item) => patch({ invites: [item, ...state.invites] }),
-    removeInvite: (id) => patch({ invites: state.invites.filter((item) => item.id !== id) }),
-    reset: () => save({ ...freshState(), session: true }),
-  }), [patch, ready, save, state]);
-  return <Context.Provider value={value}>{ready ? children : <main className="page-loading">Preparando o espaço de vocês...</main>}</Context.Provider>;
-}
-
-export function useDemo() { const value = useContext(Context); if (!value) throw new Error("DemoProvider ausente"); return value; }
+export function DemoProvider({children}:{children:React.ReactNode}){
+ const[state,setState]=useState<AppState>(demoState);const[ready,setReady]=useState(false);
+ const client=useMemo(()=>url&&key?createBrowserClient(url,key):null,[]);const online=Boolean(client);
+ const loadRemote=useCallback(async()=>{if(!client)return;const{data:{user}}=await client.auth.getUser();if(!user){setState({...freshState(),session:false,demo:false});return}const{data:profile,error}=await client.from("profiles").select("full_name,active_household_id,theme").eq("id",user.id).single();if(error)throw error;const householdId=profile.active_household_id as string|undefined;if(!householdId){setState({...freshState(),session:true,onboarded:false,demo:false,user:{name:profile.full_name,email:user.email??"",theme:profile.theme},household:{name:"",activeId:""},transactions:[],accounts:[],categories:[],projects:[],members:[],invites:[]});return}const[households,accounts,categories,transactions,projects,members]=await Promise.all([client.from("households").select("name").eq("id",householdId).single(),client.from("accounts").select("*").eq("household_id",householdId),client.from("categories").select("*").eq("household_id",householdId),client.from("transactions").select("*").eq("household_id",householdId).is("deleted_at",null).order("transaction_date",{ascending:false}),client.from("projects").select("*").eq("household_id",householdId),client.rpc("get_household_members",{p_household_id:householdId})]);
+ const nameById=new Map((members.data??[]).map((m:any)=>[m.user_id,String(m.full_name).split(" ")[0]]));setState({...freshState(),session:true,onboarded:true,demo:false,user:{name:profile.full_name,email:user.email??"",theme:profile.theme},household:{name:households.data?.name??"Nosso espaço",activeId:householdId},accounts:(accounts.data??[]).map((a:any)=>({id:a.id,name:a.name,kind:a.kind,openingBalanceCents:Number(a.opening_balance_cents),color:a.color,active:a.active})),categories:(categories.data??[]).map((c:any)=>({id:c.id,name:c.name,type:c.type,icon:c.icon,color:c.color,active:c.active})),projects:(projects.data??[]).map((p:any)=>({id:p.id,name:p.name,client:p.client_name??undefined,status:p.status,expectedRevenueCents:p.expected_revenue_cents==null?undefined:Number(p.expected_revenue_cents),startDate:p.start_date??undefined})),transactions:(transactions.data??[]).map((t:any)=>({id:t.id,type:t.type,amountCents:Number(t.amount_cents),description:t.description,date:t.transaction_date,accountId:t.account_id,categoryId:t.category_id,projectId:t.project_id??undefined,owner:(nameById.get(t.created_by)??"Casal") as Transaction["owner"],notes:t.notes??undefined,recurring:t.recurring})),members:(members.data??[]).map((m:any)=>({id:m.user_id,name:m.full_name,email:m.email,role:m.role,status:"active",initials:String(m.full_name).split(" ").map((part:string)=>part[0]).join("").slice(0,2)})),invites:[]});},[client]);
+ useEffect(()=>{const timer=window.setTimeout(()=>{if(client){loadRemote().catch(()=>setState({...freshState(),session:false,demo:false})).finally(()=>setReady(true))}else{try{const raw=localStorage.getItem(KEY);if(raw)setState(JSON.parse(raw) as AppState)}catch{localStorage.removeItem(KEY)}setReady(true)}},0);return()=>clearTimeout(timer)},[client,loadRemote]);
+ useEffect(()=>{const theme=state.user.theme??"system";document.documentElement.dataset.theme=theme;if(theme==="system")document.documentElement.dataset.theme=matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"},[state.user.theme]);
+ const save=useCallback((next:AppState)=>{setState(next);if(!client)localStorage.setItem(KEY,JSON.stringify(next))},[client]);const patch=useCallback((data:Partial<AppState>)=>save({...state,...data}),[save,state]);
+ const withUser=useCallback(async()=>{if(!client)throw new Error("Supabase não configurado");const{data:{user}}=await client.auth.getUser();if(!user)throw new Error("Sessão expirada");return user},[client]);
+ const value=useMemo<Store>(()=>({state,ready,online,save,
+  login:async(email,password)=>{if(!client){patch({session:true,user:{...state.user,email}});return}const{error}=await client.auth.signInWithPassword({email,password});if(error)throw error;await loadRemote()},
+  signup:async(name,email,password)=>{if(!client){patch({session:true,onboarded:false,user:{name,email,theme:"system"}});return}const{error}=await client.auth.signUp({email,password,options:{data:{full_name:name}}});if(error)throw error;await loadRemote()},recover:async email=>{if(!client)return;const{error}=await client.auth.resetPasswordForEmail(email,{redirectTo:`${location.origin}/login`});if(error)throw error},logout:async()=>{if(client)await client.auth.signOut();patch({session:false})},
+  completeOnboarding:async(name,household)=>{if(client){await client.from("profiles").update({full_name:name}).eq("id",(await withUser()).id);const{error}=await client.rpc("create_household",{p_name:household});if(error)throw error;await loadRemote()}else patch({onboarded:true,user:{...state.user,name},household:{name:household,activeId:"demo-household"}})},
+  addTransaction:x=>{patch({transactions:[x,...state.transactions]});if(client)void withUser().then(user=>client.from("transactions").insert({id:x.id,household_id:state.household.activeId,account_id:x.accountId,category_id:x.categoryId||null,project_id:x.projectId||null,created_by:user.id,type:x.type,amount_cents:x.amountCents,description:x.description,notes:x.notes||null,transaction_date:x.date,recurring:Boolean(x.recurring)}))},updateTransaction:x=>{patch({transactions:state.transactions.map(t=>t.id===x.id?x:t)});if(client)void client.from("transactions").update({account_id:x.accountId,category_id:x.categoryId||null,project_id:x.projectId||null,type:x.type,amount_cents:x.amountCents,description:x.description,notes:x.notes||null,transaction_date:x.date,recurring:Boolean(x.recurring)}).eq("id",x.id)},removeTransaction:id=>{patch({transactions:state.transactions.filter(t=>t.id!==id)});if(client)void client.from("transactions").update({deleted_at:new Date().toISOString()}).eq("id",id)},
+  addAccount:x=>{patch({accounts:[...state.accounts,x]});if(client)void client.from("accounts").insert({id:x.id,household_id:state.household.activeId,name:x.name,kind:x.kind,opening_balance_cents:x.openingBalanceCents,color:x.color,active:x.active})},updateAccount:x=>{patch({accounts:state.accounts.map(a=>a.id===x.id?x:a)});if(client)void client.from("accounts").update({name:x.name,kind:x.kind,opening_balance_cents:x.openingBalanceCents,color:x.color,active:x.active}).eq("id",x.id)},addCategory:x=>{patch({categories:[...state.categories,x]});if(client)void client.from("categories").insert({id:x.id,household_id:state.household.activeId,name:x.name,type:x.type,icon:x.icon,color:x.color,active:x.active})},updateCategory:x=>{patch({categories:state.categories.map(c=>c.id===x.id?x:c)});if(client)void client.from("categories").update({name:x.name,icon:x.icon,color:x.color,active:x.active}).eq("id",x.id)},addProject:x=>{patch({projects:[...state.projects,x]});if(client)void withUser().then(user=>client.from("projects").insert({id:x.id,household_id:state.household.activeId,name:x.name,client_name:x.client||null,status:x.status,expected_revenue_cents:x.expectedRevenueCents??null,start_date:x.startDate??null,created_by:user.id}))},
+  addGoal:x=>patch({goals:[...state.goals,x]}),updateGoal:x=>patch({goals:state.goals.map(g=>g.id===x.id?x:g)}),addInvite:x=>patch({invites:[x,...state.invites]}),removeInvite:id=>patch({invites:state.invites.filter(i=>i.id!==id)}),setTheme:theme=>{patch({user:{...state.user,theme}});if(client)void withUser().then(user=>client.from("profiles").update({theme}).eq("id",user.id))},reset:()=>save({...freshState(),session:true})}),[client,loadRemote,online,patch,ready,save,state,withUser]);
+ return <Context.Provider value={value}>{ready?children:<main className="page-loading">Preparando o espaço de vocês...</main>}</Context.Provider>}
+export function useDemo(){const value=useContext(Context);if(!value)throw new Error("DemoProvider ausente");return value}
