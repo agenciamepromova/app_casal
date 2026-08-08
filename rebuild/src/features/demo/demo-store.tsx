@@ -4,6 +4,8 @@ import { createBrowserClient } from "@supabase/ssr";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { demoState, freshState } from "@/domain/demo-data";
 import type { Account, AppState, Category, Commitment, Goal, Invite, Project, Transaction } from "@/domain/types";
+import type { SignupOutcome } from "@/lib/auth-flow";
+import { authMessage } from "@/lib/auth-flow";
 
 const KEY = "plano-a-dois-rebuild-v3";
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -12,8 +14,8 @@ const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 type AsyncAction<T> = (value: T) => Promise<void>;
 type Store = {
   state: AppState; ready: boolean; online: boolean;
-  login:(email:string,password:string)=>Promise<void>; signup:(name:string,email:string,password:string)=>Promise<void>;
-  recover:(email:string)=>Promise<void>; logout:()=>Promise<void>; completeOnboarding:(name:string,household:string)=>Promise<void>;
+  login:(email:string,password:string)=>Promise<void>; signup:(name:string,email:string,password:string,emailRedirectTo:string)=>Promise<SignupOutcome>;
+  recover:(email:string,next?:string)=>Promise<void>; updatePassword:(password:string)=>Promise<void>; logout:()=>Promise<void>; completeOnboarding:(name:string,household:string)=>Promise<void>;
   updateProfile:(name:string)=>Promise<void>; setTheme:(theme:"dark"|"light"|"system")=>Promise<void>;
   addTransaction:AsyncAction<Transaction>; updateTransaction:AsyncAction<Transaction>; removeTransaction:(id:string)=>Promise<void>;
   addAccount:AsyncAction<Account>; updateAccount:AsyncAction<Account>;
@@ -89,9 +91,10 @@ export function DemoProvider({children}:{children:React.ReactNode}) {
   const checked=useCallback(async <T,>(operation:PromiseLike<{data:T;error:unknown}>)=>{const result=await operation;if(result.error)throw result.error;return result.data},[]);
 
   const value = useMemo<Store>(()=>({state,ready,online,
-    login:async(email,password)=>{if(!client){saveLocal({...state,session:true,user:{...state.user,email}});return}const{error}=await client.auth.signInWithPassword({email,password});if(error)throw new Error(error.message);await loadRemote()},
-    signup:async(name,email,password)=>{if(!client){saveLocal({...state,session:true,onboarded:false,user:{name,email,theme:"system"}});return}const{error}=await client.auth.signUp({email,password,options:{data:{full_name:name}}});if(error)throw new Error(error.message);await loadRemote()},
-    recover:async email=>{if(!client)return;const{error}=await client.auth.resetPasswordForEmail(email,{redirectTo:`${location.origin}/login`});if(error)throw new Error(error.message)},
+    login:async(email,password)=>{if(!client){saveLocal({...state,session:true,user:{...state.user,email}});return}const{error}=await client.auth.signInWithPassword({email,password});if(error)throw new Error(authMessage(error.message,"login"));await loadRemote()},
+    signup:async(name,email,password,emailRedirectTo)=>{if(!client){saveLocal({...state,session:true,onboarded:false,user:{name,email,theme:"system"}});return "authenticated"}const{data,error}=await client.auth.signUp({email,password,options:{data:{full_name:name},emailRedirectTo}});if(error)throw new Error(authMessage(error.message,"signup"));if(data.user?.identities?.length===0)return "existing_account";if(!data.session)return "confirmation_required";await loadRemote();return "authenticated"},
+    recover:async(email,next)=>{if(!client)return;const destination=next??"/dashboard";const updatePath=`/atualizar-senha?next=${encodeURIComponent(destination)}`;const{error}=await client.auth.resetPasswordForEmail(email,{redirectTo:`${location.origin}/auth/callback?next=${encodeURIComponent(updatePath)}`});if(error)throw new Error(authMessage(error.message,"recover"))},
+    updatePassword:async password=>{if(!client)return;const{error}=await client.auth.updateUser({password});if(error)throw new Error(authMessage(error.message,"recover"))},
     logout:async()=>{if(client)await client.auth.signOut();setState({...freshState(),session:false,demo:!client,commitments:[]})},
     completeOnboarding:async(name,household)=>{if(!client){saveLocal({...state,onboarded:true,user:{...state.user,name},household:{name:household,activeId:"demo-household"}});return}const user=await withUser();await checked(client.from("profiles").update({full_name:name}).eq("id",user.id));await checked(client.rpc("create_household",{p_name:household}));await loadRemote()},
     updateProfile:async name=>{if(!client){saveLocal({...state,user:{...state.user,name}});return}const user=await withUser();await checked(client.from("profiles").update({full_name:name}).eq("id",user.id));await loadRemote()},

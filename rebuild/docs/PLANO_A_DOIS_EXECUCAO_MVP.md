@@ -57,3 +57,7 @@ O Preview deve ser validado com os dois logins reais e um terceiro usuário ante
 ## Correção do 404 de convite
 
 A causa foi a ausência da rota `/aceitar-convite`: a tela criava um convite somente no estado local e copiava um UUID fictício, enquanto o proxy classificava a URL inexistente como privada. A correção adiciona a rota dinâmica pública, pré-visualização mínima por token, retorno preservado no login/cadastro, convite persistido, cancelamento real, rotação de link e aceite transacional sem duplicar integrantes. Links pendentes anteriores foram invalidados; não havia convite pendente no banco no momento da aplicação.
+
+## Correção do cadastro iniciado por convite
+
+O Supabase Auth exige confirmação por e-mail neste projeto. O cadastro retornava usuário sem sessão, como esperado, mas a aplicação chamava imediatamente a carga autenticada; essa chamada produzia `Auth session missing!`. O fluxo agora distingue sessão imediata, confirmação pendente e conta existente, sem executar consultas autenticadas antes de haver sessão. O callback `/auth/callback` troca o código por sessão e restaura o destino interno do convite. Cadastro, login e recuperação mantêm o token; o e-mail convidado fica preenchido e bloqueado. A recuperação usa `/atualizar-senha` e retorna ao mesmo convite. A URL da Preview deve permanecer na lista de Redirect URLs do Supabase, junto das URLs já autorizadas, antes da homologação final.
