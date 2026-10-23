@@ -2,18 +2,19 @@
 
 import { createBrowserClient } from "@supabase/ssr";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { clearPublicDemo } from "@/domain/demo-reset";
 import { demoState, freshState } from "@/domain/demo-data";
 import type { Account, AppState, Category, Commitment, Goal, Invite, Project, Transaction } from "@/domain/types";
 import type { SignupOutcome } from "@/lib/auth-flow";
 import { authMessage } from "@/lib/auth-flow";
 
-const KEY = "plano-a-dois-rebuild-v3";
+const LIVE_DEMO_KEY = "plano-a-dois-rebuild-v3";
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
 type AsyncAction<T> = (value: T) => Promise<void>;
 type Store = {
-  state: AppState; ready: boolean; online: boolean;
+  state: AppState; ready: boolean; online: boolean; demoOnly:boolean;
   login:(email:string,password:string)=>Promise<void>; signup:(name:string,email:string,password:string,emailRedirectTo:string)=>Promise<SignupOutcome>;
   recover:(email:string,next?:string)=>Promise<void>; updatePassword:(password:string)=>Promise<void>; logout:()=>Promise<void>; completeOnboarding:(name:string,household:string)=>Promise<void>;
   updateProfile:(name:string)=>Promise<void>; setTheme:(theme:"dark"|"light"|"system")=>Promise<void>;
@@ -40,10 +41,11 @@ const legacyCategoryNames = new Map([
 ]);
 const categoryName = (value: unknown) => { const name = text(value); return legacyCategoryNames.get(name) ?? name; };
 
-export function DemoProvider({children}:{children:React.ReactNode}) {
-  const [state,setState] = useState<AppState>(demoState);
+export function DemoProvider({children,demoOnly=false}:{children:React.ReactNode;demoOnly?:boolean}) {
+  const KEY=demoOnly?"plano-a-dois-public-demo-v1":LIVE_DEMO_KEY;
+  const [state,setState] = useState<AppState>(()=>demoOnly?{...freshState(),session:true,household:{name:"Demonstração • Nikson & Brenda",activeId:"demo-household"},projects:[...demoState.projects,{id:"demo-casa",name:"Casa",status:"active"},{id:"demo-acai",name:"Açaí",status:"active"},{id:"demo-marketing",name:"Marketing",status:"active"}]}:demoState);
   const [ready,setReady] = useState(false);
-  const client = useMemo(() => url && key ? createBrowserClient(url,key) : null,[]);
+  const client = useMemo(() => url && key && !demoOnly ? createBrowserClient(url,key) : null,[demoOnly]);
   const online = Boolean(client);
 
   const loadRemote = useCallback(async () => {
@@ -91,7 +93,7 @@ export function DemoProvider({children}:{children:React.ReactNode}) {
       invites:((invitationsResult.data??[]) as Row[]).map(item=>({id:text(item.id),email:text(item.email_normalized),role:item.role as Invite["role"],status:"pending",expiresAt:text(item.expires_at)}))});
   },[client]);
 
-  useEffect(()=>{const timer=window.setTimeout(()=>{if(client)loadRemote().catch(()=>setState({...freshState(),session:false,demo:false,commitments:[]})).finally(()=>setReady(true));else{try{const raw=localStorage.getItem(KEY);if(raw)setState(JSON.parse(raw) as AppState)}catch{localStorage.removeItem(KEY)}setReady(true)}},0);return()=>clearTimeout(timer)},[client,loadRemote]);
+  useEffect(()=>{const timer=window.setTimeout(()=>{if(client)loadRemote().catch(()=>setState({...freshState(),session:false,demo:false,commitments:[]})).finally(()=>setReady(true));else{try{const raw=localStorage.getItem(KEY);if(raw)setState(JSON.parse(raw) as AppState)}catch{localStorage.removeItem(KEY)}setReady(true)}},0);return()=>clearTimeout(timer)},[KEY,client,loadRemote]);
   useEffect(()=>{
     const preference=state.user.theme??"system";
     const media=window.matchMedia("(prefers-color-scheme: light)");
@@ -104,11 +106,11 @@ export function DemoProvider({children}:{children:React.ReactNode}) {
     media.addEventListener("change",apply);
     return()=>media.removeEventListener("change",apply);
   },[state.user.theme]);
-  const saveLocal=useCallback((next:AppState)=>{setState(next);localStorage.setItem(KEY,JSON.stringify(next))},[]);
+  const saveLocal=useCallback((next:AppState)=>{setState(next);localStorage.setItem(KEY,JSON.stringify(next))},[KEY]);
   const withUser=useCallback(async()=>{if(!client)throw new Error("Supabase não configurado");const{data:{user},error}=await client.auth.getUser();if(error||!user)throw new Error("Sua sessão expirou. Entre novamente.");return user},[client]);
   const checked=useCallback(async <T,>(operation:PromiseLike<{data:T;error:unknown}>)=>{const result=await operation;if(result.error)throw result.error;return result.data},[]);
 
-  const value = useMemo<Store>(()=>({state,ready,online,
+  const value = useMemo<Store>(()=>({state,ready,online,demoOnly,
     login:async(email,password)=>{if(!client){saveLocal({...state,session:true,user:{...state.user,email}});return}const{error}=await client.auth.signInWithPassword({email,password});if(error)throw new Error(authMessage(error.message,"login"));await loadRemote()},
     signup:async(name,email,password,emailRedirectTo)=>{if(!client){saveLocal({...state,session:true,onboarded:false,user:{name,email,theme:"system"}});return "authenticated"}const{data,error}=await client.auth.signUp({email,password,options:{data:{full_name:name},emailRedirectTo}});if(error)throw new Error(authMessage(error.message,"signup"));if(data.user?.identities?.length===0)return "existing_account";if(!data.session)return "confirmation_required";await loadRemote();return "authenticated"},
     recover:async(email,next)=>{if(!client)return;const destination=next??"/dashboard";const updatePath=`/atualizar-senha?next=${encodeURIComponent(destination)}`;const{error}=await client.auth.resetPasswordForEmail(email,{redirectTo:`${location.origin}/auth/callback?next=${encodeURIComponent(updatePath)}`});if(error)throw new Error(authMessage(error.message,"recover"))},
@@ -129,15 +131,23 @@ export function DemoProvider({children}:{children:React.ReactNode}) {
     addCommitment:async item=>{if(!client){saveLocal({...state,commitments:[...state.commitments,item]});return}const user=await withUser();await checked(client.from("financial_commitments").insert({id:item.id,household_id:state.household.activeId,title:item.title,description:item.description||null,type:item.type,amount_cents:item.amountCents??null,due_date:item.dueDate,due_time:item.dueTime||null,account_id:item.accountId||null,category_id:item.categoryId||null,project_id:item.projectId||null,responsible_id:item.responsibleId||user.id,status:item.status,recurrence:item.recurrence,custom_interval:item.customInterval??null,custom_unit:item.customUnit??null,recurrence_ends_at:item.recurrenceEndsAt||null,occurrence_limit:item.occurrenceLimit??null,notes:item.notes||null,created_by:user.id}));await loadRemote()},
     updateCommitment:async item=>{if(!client){saveLocal({...state,commitments:state.commitments.map(row=>row.id===item.id?item:row)});return}await checked(client.from("financial_commitments").update({title:item.title,description:item.description||null,type:item.type,amount_cents:item.amountCents??null,due_date:item.dueDate,due_time:item.dueTime||null,account_id:item.accountId||null,category_id:item.categoryId||null,project_id:item.projectId||null,responsible_id:item.responsibleId,status:item.status,recurrence:item.recurrence,custom_interval:item.customInterval??null,custom_unit:item.customUnit??null,recurrence_ends_at:item.recurrenceEndsAt||null,occurrence_limit:item.occurrenceLimit??null,notes:item.notes||null}).eq("id",item.id));await loadRemote()},
     removeCommitment:async id=>{const item=state.commitments.find(row=>row.id===id);if(!item)return;if(!client){saveLocal({...state,commitments:state.commitments.map(row=>row.id===id?{...row,status:"cancelled"}:row)});return}await checked(client.from("financial_commitments").update({status:"cancelled"}).eq("id",id));await loadRemote()},
-    settleCommitment:async(id,occurrenceDate,amountCents)=>{if(!client)throw new Error("Confirmação disponível somente no modo online.");await checked(client.rpc("settle_financial_commitment",{p_commitment_id:id,p_occurrence_date:occurrenceDate,p_amount_cents:amountCents??null}));await loadRemote()},
+    settleCommitment:async(id,occurrenceDate,amountCents)=>{if(!client){
+      const commitment=state.commitments.find(item=>item.id===id);
+      if(!commitment||commitment.status!=="pending")throw new Error("Compromisso indisponível.");
+      if(state.transactions.some(item=>item.sourceCommitmentId===id&&item.sourceOccurrenceDate===occurrenceDate&&item.status==="settled"))return;
+      const amount=amountCents??commitment.amountCents;
+      if(commitment.type==="event"||!commitment.accountId||!amount||amount<=0)throw new Error("Defina conta e valor antes de confirmar.");
+      const transaction:Transaction={id:crypto.randomUUID(),type:commitment.type==="payable"?"expense":"income",amountCents:amount,description:commitment.title,date:occurrenceDate,dueDate:occurrenceDate,settledAt:new Date().toISOString().slice(0,10),status:"settled",accountId:commitment.accountId,categoryId:commitment.categoryId??"",projectId:commitment.projectId,owner:state.user.name as Transaction["owner"],sourceCommitmentId:id,sourceOccurrenceDate:occurrenceDate};
+      saveLocal({...state,transactions:[transaction,...state.transactions],commitments:state.commitments.map(item=>item.id===id&&item.recurrence==="none"?{...item,status:"completed"}:item)});return;
+    }await checked(client.rpc("settle_financial_commitment",{p_commitment_id:id,p_occurrence_date:occurrenceDate,p_amount_cents:amountCents??null}));await loadRemote()},
     addGoal:async item=>{if(!client){saveLocal({...state,goals:[...state.goals,item]});return}const user=await withUser();await checked(client.from("goals").insert({id:item.id,household_id:state.household.activeId,name:item.name,description:item.description||null,target_cents:item.targetCents,due_date:item.dueDate||null,icon:item.icon,account_id:item.accountId||null,active:item.active,created_by:user.id}));await loadRemote()},
     updateGoal:async item=>{if(!client){saveLocal({...state,goals:state.goals.map(row=>row.id===item.id?item:row)});return}await checked(client.from("goals").update({name:item.name,description:item.description||null,target_cents:item.targetCents,due_date:item.dueDate||null,icon:item.icon,account_id:item.accountId||null,active:item.active}).eq("id",item.id));await loadRemote()},
     contributeGoal:async(goalId,amountCents,notes)=>{if(!client){const goal=state.goals.find(item=>item.id===goalId);if(goal)saveLocal({...state,goals:state.goals.map(item=>item.id===goalId?{...item,currentCents:item.currentCents+amountCents,contributions:[...item.contributions,{name:state.user.name,amountCents}]}:item)});return}const user=await withUser();await checked(client.from("goal_contributions").insert({goal_id:goalId,household_id:state.household.activeId,amount_cents:amountCents,contributed_by:user.id,notes:notes||null}));await loadRemote()},
     addInvite:async(emailOrInvite,role)=>{if(!client)throw new Error("Convites exigem o ambiente online.");const email=typeof emailOrInvite==="string"?emailOrInvite:emailOrInvite.email;const invitationRole=role??(typeof emailOrInvite==="string"?"member":emailOrInvite.role);const rows=await checked(client.rpc("create_invitation",{p_household_id:state.household.activeId,p_email:email,p_role:invitationRole}));const invitation=(rows as Row[]|null)?.[0];if(!invitation)throw new Error("Não foi possível criar o convite.");const id=text(invitation.invitation_id),token=text(invitation.token);let emailSent=false;try{const response=await fetch("/api/invitations/email",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({invitationId:id,token})});emailSent=response.ok&&(await response.json() as {sent?:boolean}).sent===true}catch{}await loadRemote();return{id,token,emailSent}},
     rotateInvite:async id=>{if(!client)throw new Error("Convites exigem o ambiente online.");const rows=await checked(client.rpc("rotate_invitation_token",{p_invitation_id:id}));const token=text((rows as Row[]|null)?.[0]?.token);if(!token)throw new Error("Não foi possível gerar um novo link.");await loadRemote();return token},
     removeInvite:async id=>{if(!client)throw new Error("Convites exigem o ambiente online.");await checked(client.rpc("cancel_invitation",{p_invitation_id:id}));await loadRemote()},
-    reset:()=>saveLocal({...freshState(),session:true}),
-  }),[checked,client,loadRemote,online,ready,saveLocal,state,withUser]);
+    reset:()=>saveLocal(clearPublicDemo(state,demoOnly,Boolean(client))),
+  }),[checked,client,demoOnly,loadRemote,online,ready,saveLocal,state,withUser]);
   return <Context.Provider value={value}>{ready?children:<main className="page-loading">Preparando o espaço de vocês...</main>}</Context.Provider>;
 }
 

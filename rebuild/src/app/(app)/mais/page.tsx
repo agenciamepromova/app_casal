@@ -1,0 +1,4 @@
+import Link from "@/components/app/app-link";
+import { PageHeading } from "@/components/ui/page-heading";
+const links=[["/contas","Contas"],["/cartao-demo","Testar previsão do cartão (demo isolada)"],["/acai-demo","Açaí: estimativa e semana fictícia"],["/categorias","Categorias"],["/projetos","Projetos e contextos"],["/metas","Metas do casal"],["/nosso-espaco","Nosso espaço"],["/configuracoes","Configurações e perfil"]];
+export default function More(){return <><PageHeading title="Mais" description="Tudo o que vocês já usam, em um só lugar."/><div className="more-links">{links.map(([href,label])=><Link className="panel" href={href} key={href}>{label} <span aria-hidden="true">→</span></Link>)}</div></>}

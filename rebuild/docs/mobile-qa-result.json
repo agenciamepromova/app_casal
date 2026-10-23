@@ -1,0 +1,31 @@
+{
+  "passed": true,
+  "widths": [
+    320,
+    375,
+    390,
+    430,
+    1366
+  ],
+  "routes": [
+    "dashboard",
+    "movimentacoes",
+    "agenda",
+    "mais",
+    "cartao-demo"
+  ],
+  "checks": [
+    "no horizontal overflow",
+    "income and expense without optional details",
+    "inherited projectId",
+    "unchanged original author on edit",
+    "unsaved cancel / Escape",
+    "keyboard focus trap",
+    "monthly recurring bill",
+    "variable payment amount",
+    "series cancel preserves payment",
+    "card installments and payment independent of financial ledger",
+    "card demo cleared on reload"
+  ],
+  "errors": []
+}
