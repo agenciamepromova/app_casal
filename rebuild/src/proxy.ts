@@ -2,6 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
 export async function proxy(request: NextRequest) {
+  // Explicit fixture-only route: no Supabase client, cookies or remote auth calls.
+  if(request.nextUrl.pathname==="/demo"||request.nextUrl.pathname.startsWith("/demo/"))return NextResponse.next({request});
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !publishableKey) return NextResponse.next({ request });

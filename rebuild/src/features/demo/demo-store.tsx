@@ -7,7 +7,7 @@ import type { Account, AppState, Category, Commitment, Goal, Invite, Project, Tr
 import type { SignupOutcome } from "@/lib/auth-flow";
 import { authMessage } from "@/lib/auth-flow";
 
-const KEY = "plano-a-dois-rebuild-v3";
+const LIVE_DEMO_KEY = "plano-a-dois-rebuild-v3";
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
@@ -40,10 +40,11 @@ const legacyCategoryNames = new Map([
 ]);
 const categoryName = (value: unknown) => { const name = text(value); return legacyCategoryNames.get(name) ?? name; };
 
-export function DemoProvider({children}:{children:React.ReactNode}) {
-  const [state,setState] = useState<AppState>(demoState);
+export function DemoProvider({children,demoOnly=false}:{children:React.ReactNode;demoOnly?:boolean}) {
+  const KEY=demoOnly?"plano-a-dois-public-demo-v1":LIVE_DEMO_KEY;
+  const [state,setState] = useState<AppState>(()=>demoOnly?{...freshState(),session:true,household:{name:"Demonstração • Nikson & Brenda",activeId:"demo-household"},projects:[...demoState.projects,{id:"demo-casa",name:"Casa",status:"active"},{id:"demo-acai",name:"Açaí",status:"active"},{id:"demo-marketing",name:"Marketing",status:"active"}]}:demoState);
   const [ready,setReady] = useState(false);
-  const client = useMemo(() => url && key ? createBrowserClient(url,key) : null,[]);
+  const client = useMemo(() => url && key && !demoOnly ? createBrowserClient(url,key) : null,[demoOnly]);
   const online = Boolean(client);
 
   const loadRemote = useCallback(async () => {
@@ -91,7 +92,7 @@ export function DemoProvider({children}:{children:React.ReactNode}) {
       invites:((invitationsResult.data??[]) as Row[]).map(item=>({id:text(item.id),email:text(item.email_normalized),role:item.role as Invite["role"],status:"pending",expiresAt:text(item.expires_at)}))});
   },[client]);
 
-  useEffect(()=>{const timer=window.setTimeout(()=>{if(client)loadRemote().catch(()=>setState({...freshState(),session:false,demo:false,commitments:[]})).finally(()=>setReady(true));else{try{const raw=localStorage.getItem(KEY);if(raw)setState(JSON.parse(raw) as AppState)}catch{localStorage.removeItem(KEY)}setReady(true)}},0);return()=>clearTimeout(timer)},[client,loadRemote]);
+  useEffect(()=>{const timer=window.setTimeout(()=>{if(client)loadRemote().catch(()=>setState({...freshState(),session:false,demo:false,commitments:[]})).finally(()=>setReady(true));else{try{const raw=localStorage.getItem(KEY);if(raw)setState(JSON.parse(raw) as AppState)}catch{localStorage.removeItem(KEY)}setReady(true)}},0);return()=>clearTimeout(timer)},[KEY,client,loadRemote]);
   useEffect(()=>{
     const preference=state.user.theme??"system";
     const media=window.matchMedia("(prefers-color-scheme: light)");
@@ -104,7 +105,7 @@ export function DemoProvider({children}:{children:React.ReactNode}) {
     media.addEventListener("change",apply);
     return()=>media.removeEventListener("change",apply);
   },[state.user.theme]);
-  const saveLocal=useCallback((next:AppState)=>{setState(next);localStorage.setItem(KEY,JSON.stringify(next))},[]);
+  const saveLocal=useCallback((next:AppState)=>{setState(next);localStorage.setItem(KEY,JSON.stringify(next))},[KEY]);
   const withUser=useCallback(async()=>{if(!client)throw new Error("Supabase não configurado");const{data:{user},error}=await client.auth.getUser();if(error||!user)throw new Error("Sua sessão expirou. Entre novamente.");return user},[client]);
   const checked=useCallback(async <T,>(operation:PromiseLike<{data:T;error:unknown}>)=>{const result=await operation;if(result.error)throw result.error;return result.data},[]);
 

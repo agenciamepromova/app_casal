@@ -1,0 +1,22 @@
+{
+  "passed": true,
+  "widths": [
+    320,
+    375,
+    390,
+    430,
+    1366
+  ],
+  "supabaseRequests": 0,
+  "pageErrors": [],
+  "checks": [
+    "demo uses fixture provider even with remote env present",
+    "separate storage key, existing storage untouched",
+    "no auth session storage",
+    "navigation remains under /demo",
+    "income/expense and recurring settlement only in demo storage",
+    "reload preserves demo data",
+    "real login is a separate route",
+    "unauthenticated real dashboard redirects to login"
+  ]
+}

@@ -1,5 +1,5 @@
 "use client";
-import Link from "next/link";
+import Link from "@/components/app/app-link";
 import { FormEvent, useState } from "react";
 import type { Transaction, TransactionStatus, TransactionType } from "@/domain/types";
 import { useDemo } from "@/features/demo/demo-store";

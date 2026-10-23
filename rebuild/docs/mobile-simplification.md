@@ -5,6 +5,10 @@ Branch: `feat/mobile-simplification`. Produção/main não é alvo desta revisã
 
 ## Para testar
 
+O caminho `/demo` é uma entrada pública da aplicação para fixtures, separado do login real (a proteção externa da Vercel permanece). Nele, o provider não instancia Supabase, a navegação usa `/demo/...` e o armazenamento usa `plano-a-dois-public-demo-v1`. O modo real continua em `/login` e nas rotas normais. O link de preview não fornece uma sessão da aplicação.
+
+Verificação adicional: build com endpoint remoto fictício configurado, 30 testes unitários e `scripts/public-demo-qa.mjs`. Testado zero requisições Supabase, nenhuma chave de sessão, armazenamento do modo real intacto, registro/recorrente fictícios, navegação e recarga em 320/375/390/430/1366. O dashboard normal continuou protegido e redirecionou ao login. Nenhum dado real foi usado como fixture.
+
 1. Em Início, toque em **Adicionar conta recorrente**. Informe título, valor previsto, primeiro vencimento e conta. A repetição padrão é mensal; é possível escolher uma única vez.
 2. Na Agenda, confirme **Paguei/Recebi**, ajustando o valor efetivo quando necessário. Só a ocorrência escolhida é liquidada. Cancelar uma recorrência cancela a série; pagamentos anteriores permanecem.
 3. Em Dinheiro, registre entrada ou saída com valor, descrição e conta. A categoria pode ficar vazia; conta não é escolhida automaticamente quando há várias. Data padrão é hoje. Data, situação, categoria, observação e autoria ficam em detalhes opcionais.

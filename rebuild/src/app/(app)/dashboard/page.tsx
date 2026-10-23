@@ -1,5 +1,5 @@
 "use client";
-import Link from "next/link";
+import Link from "@/components/app/app-link";
 import { useState } from "react";
 import { PageHeading } from "@/components/ui/page-heading";
 import { useDemo } from "@/features/demo/demo-store";

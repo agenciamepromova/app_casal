@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/app/app-link";
 import { Download, Edit3, Plus, Search, Trash2 } from "lucide-react";
 import type { Transaction } from "@/domain/types";
 import { Modal } from "@/components/ui/modal";
