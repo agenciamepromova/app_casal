@@ -2,6 +2,7 @@
 
 import { createBrowserClient } from "@supabase/ssr";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { clearPublicDemo } from "@/domain/demo-reset";
 import { demoState, freshState } from "@/domain/demo-data";
 import type { Account, AppState, Category, Commitment, Goal, Invite, Project, Transaction } from "@/domain/types";
 import type { SignupOutcome } from "@/lib/auth-flow";
@@ -13,7 +14,7 @@ const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
 type AsyncAction<T> = (value: T) => Promise<void>;
 type Store = {
-  state: AppState; ready: boolean; online: boolean;
+  state: AppState; ready: boolean; online: boolean; demoOnly:boolean;
   login:(email:string,password:string)=>Promise<void>; signup:(name:string,email:string,password:string,emailRedirectTo:string)=>Promise<SignupOutcome>;
   recover:(email:string,next?:string)=>Promise<void>; updatePassword:(password:string)=>Promise<void>; logout:()=>Promise<void>; completeOnboarding:(name:string,household:string)=>Promise<void>;
   updateProfile:(name:string)=>Promise<void>; setTheme:(theme:"dark"|"light"|"system")=>Promise<void>;
@@ -109,7 +110,7 @@ export function DemoProvider({children,demoOnly=false}:{children:React.ReactNode
   const withUser=useCallback(async()=>{if(!client)throw new Error("Supabase não configurado");const{data:{user},error}=await client.auth.getUser();if(error||!user)throw new Error("Sua sessão expirou. Entre novamente.");return user},[client]);
   const checked=useCallback(async <T,>(operation:PromiseLike<{data:T;error:unknown}>)=>{const result=await operation;if(result.error)throw result.error;return result.data},[]);
 
-  const value = useMemo<Store>(()=>({state,ready,online,
+  const value = useMemo<Store>(()=>({state,ready,online,demoOnly,
     login:async(email,password)=>{if(!client){saveLocal({...state,session:true,user:{...state.user,email}});return}const{error}=await client.auth.signInWithPassword({email,password});if(error)throw new Error(authMessage(error.message,"login"));await loadRemote()},
     signup:async(name,email,password,emailRedirectTo)=>{if(!client){saveLocal({...state,session:true,onboarded:false,user:{name,email,theme:"system"}});return "authenticated"}const{data,error}=await client.auth.signUp({email,password,options:{data:{full_name:name},emailRedirectTo}});if(error)throw new Error(authMessage(error.message,"signup"));if(data.user?.identities?.length===0)return "existing_account";if(!data.session)return "confirmation_required";await loadRemote();return "authenticated"},
     recover:async(email,next)=>{if(!client)return;const destination=next??"/dashboard";const updatePath=`/atualizar-senha?next=${encodeURIComponent(destination)}`;const{error}=await client.auth.resetPasswordForEmail(email,{redirectTo:`${location.origin}/auth/callback?next=${encodeURIComponent(updatePath)}`});if(error)throw new Error(authMessage(error.message,"recover"))},
@@ -145,8 +146,8 @@ export function DemoProvider({children,demoOnly=false}:{children:React.ReactNode
     addInvite:async(emailOrInvite,role)=>{if(!client)throw new Error("Convites exigem o ambiente online.");const email=typeof emailOrInvite==="string"?emailOrInvite:emailOrInvite.email;const invitationRole=role??(typeof emailOrInvite==="string"?"member":emailOrInvite.role);const rows=await checked(client.rpc("create_invitation",{p_household_id:state.household.activeId,p_email:email,p_role:invitationRole}));const invitation=(rows as Row[]|null)?.[0];if(!invitation)throw new Error("Não foi possível criar o convite.");const id=text(invitation.invitation_id),token=text(invitation.token);let emailSent=false;try{const response=await fetch("/api/invitations/email",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({invitationId:id,token})});emailSent=response.ok&&(await response.json() as {sent?:boolean}).sent===true}catch{}await loadRemote();return{id,token,emailSent}},
     rotateInvite:async id=>{if(!client)throw new Error("Convites exigem o ambiente online.");const rows=await checked(client.rpc("rotate_invitation_token",{p_invitation_id:id}));const token=text((rows as Row[]|null)?.[0]?.token);if(!token)throw new Error("Não foi possível gerar um novo link.");await loadRemote();return token},
     removeInvite:async id=>{if(!client)throw new Error("Convites exigem o ambiente online.");await checked(client.rpc("cancel_invitation",{p_invitation_id:id}));await loadRemote()},
-    reset:()=>saveLocal({...freshState(),session:true}),
-  }),[checked,client,loadRemote,online,ready,saveLocal,state,withUser]);
+    reset:()=>saveLocal(clearPublicDemo(state,demoOnly,Boolean(client))),
+  }),[checked,client,demoOnly,loadRemote,online,ready,saveLocal,state,withUser]);
   return <Context.Provider value={value}>{ready?children:<main className="page-loading">Preparando o espaço de vocês...</main>}</Context.Provider>;
 }
 

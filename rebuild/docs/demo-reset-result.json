@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "scope": "local build, public /demo only",
+  "checks": [
+    "confirmation cancel preserves records",
+    "confirmation accept clears fictional transactions/commitments/goals/opening balances",
+    "account/category/project configuration preserved",
+    "live-mode storage marker unchanged",
+    "reload keeps demo empty",
+    "dashboard monetary metrics zero"
+  ],
+  "supabaseRequests": 0,
+  "pageErrors": []
+}
